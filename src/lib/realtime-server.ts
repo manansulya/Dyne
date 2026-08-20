@@ -2,6 +2,7 @@
 // This is used by API routes after they persist data to the DB.
 // Uses a single shared socket.io-client connection to the local mini-service.
 import { io, Socket } from "socket.io-client";
+import { realtimeSecret } from "@/lib/realtime-token";
 
 const REALTIME_URL =
   process.env.REALTIME_URL || "http://localhost:3003";
@@ -16,6 +17,9 @@ function getClient(): Socket | null {
   try {
     client = io(REALTIME_URL, {
       path: "/",
+      // Broadcasting into rooms is restricted to this identity; browsers only
+      // ever get a per-user token.
+      auth: { serverSecret: realtimeSecret() },
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 5,

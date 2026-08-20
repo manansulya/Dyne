@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { withUserId } from "@/lib/server-auth";
 import { COURSE_COLORS } from "@/lib/constants";
 import { addDays, addHours, addMinutes } from "date-fns";
+import { randomUUID } from "node:crypto";
+import { devFixturesEnabled, devFixturesDisabledResponse } from "@/lib/dev-fixtures";
 
 const DAYS = [1, 2, 3, 4, 5]; // Mon-Fri
 
@@ -307,45 +309,10 @@ const GOALS_SEED = [
 ];
 
 export const POST = withUserId(async (userId) => {
-  // SECURITY: refuse to run in production. This endpoint wipes the user's
-  // data before re-seeding — it must never be callable in a real deployment.
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Seed endpoint is disabled in production" },
-      { status: 403 }
-    );
-  }
-  // Delete existing user data first
-  await db.notification.deleteMany({ where: { userId } });
-  await db.studySession.deleteMany({ where: { userId } });
-  await db.habitLog.deleteMany({ where: { userId } });
-  await db.habit.deleteMany({ where: { userId } });
-  await db.goal.deleteMany({ where: { userId } });
-  await db.note.deleteMany({ where: { userId } });
-  await db.exam.deleteMany({ where: { userId } });
-  await db.task.deleteMany({ where: { userId } });
-  await db.event.deleteMany({ where: { userId } });
-  await db.assignment.deleteMany({ where: { userId } });
-  await db.course.deleteMany({ where: { userId } });
-  await db.semester.deleteMany({ where: { userId } });
-  // Social cleanup (delete communities created by user; cascade handles the rest)
-  await db.community.deleteMany({ where: { createdBy: userId } });
-  // Space cleanup
-  await db.space.deleteMany({ where: { ownerId: userId } });
-  // Clean up reactions/bookmarks/posts/comments authored by user
-  await db.reaction.deleteMany({ where: { userId } });
-  await db.bookmark.deleteMany({ where: { userId } });
-  await db.comment.deleteMany({ where: { authorId: userId } });
-  await db.post.deleteMany({ where: { authorId: userId } });
-  // Memberships
-  await db.communityMember.deleteMany({ where: { userId } });
-  await db.spaceMember.deleteMany({ where: { userId } });
-  // DMs and conversations
-  await db.directMessage.deleteMany({ where: { authorId: userId } });
-  await db.conversation.deleteMany({
-    where: { OR: [{ memberOneId: userId }, { memberTwoId: userId }] },
-  });
+  if (!devFixturesEnabled()) return devFixturesDisabledResponse();
 
+  // Fixtures are strictly additive: nothing here deletes or replaces existing
+  // rows, so running it can never destroy real data.
   // Create semester
   const now = new Date();
   const semester = await db.semester.create({
@@ -616,11 +583,14 @@ export const POST = withUserId(async (userId) => {
     },
   ];
 
+  const suffix = randomUUID().slice(0, 4);
   const communityMap: Record<string, string> = {};
   for (const cs of COMMUNITY_SEED) {
+    // Community names are globally unique; suffix them so fixtures can be run
+    // more than once and by more than one local account.
     const community = await db.community.create({
       data: {
-        name: cs.name,
+        name: `${cs.name}_${suffix}`,
         description: cs.description,
         color: cs.color,
         createdBy: userId,

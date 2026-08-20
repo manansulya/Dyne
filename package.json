@@ -8,6 +8,8 @@
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "typecheck:realtime": "tsc --noEmit -p mini-services/realtime/tsconfig.json",
+    "realtime": "bun mini-services/realtime/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
