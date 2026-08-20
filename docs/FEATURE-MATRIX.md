@@ -1,7 +1,8 @@
 # Dyne — Feature Matrix
 
 Status of every user-facing feature, per layer. Derived from the
-[audit](./AUDIT.md) plus the work verified in Phase 0 and Phase 1.
+[audit](./AUDIT.md) plus the work verified in Phase 0, Phase 1 and the storage phase
+(see [docs/STORAGE.md](./STORAGE.md)).
 
 **A feature is not `IMPLEMENTED` because code for it exists.** It is `IMPLEMENTED` only when the
 layers it needs are real *and* something automated or manually reproduced proves it works.
@@ -56,7 +57,7 @@ the audit, with no regression test yet.
 
 | Feature | Location | Frontend | Backend | Database | Storage | Realtime | Authorization | Tests | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| Posts (create/edit/delete) | `src/app/api/posts/`, `views/community-feed.tsx` | yes | yes | yes | no (URL-only media) | yes (community room) | yes | yes (`test/social.test.ts`, `test/authorization.test.ts`) | PARTIAL |
+| Posts (create/edit/delete) | `src/app/api/posts/`, `views/community-feed.tsx` | yes | yes | yes | partial (API accepts real attachments; the post composer still takes a media URL) | yes (community room) | yes | yes (`test/social.test.ts`, `test/authorization.test.ts`) | PARTIAL |
 | Nested comments | `src/app/api/comments/`, `views/post-detail.tsx` | yes | yes | yes | n/a | yes | yes | yes (`test/social.test.ts`) | IMPLEMENTED |
 | Votes / likes | `src/app/api/posts/[id]/vote/` | yes | yes | yes | n/a | no | yes | yes (`test/social.test.ts`) | IMPLEMENTED |
 | Bookmarks / saved posts | `src/app/api/posts/[id]/bookmark/`, `src/lib/api-client.ts` | yes | yes | yes | n/a | no | yes | no (fixed in Phase 0; no regression test yet) | PARTIAL |
@@ -84,7 +85,8 @@ the audit, with no regression test yet.
 | Message reactions | `MessageReaction`/`DMReaction` models | no | no | yes (schema only) | n/a | no | n/a | no | NOT IMPLEMENTED |
 | Reply-to context | `Message.replyToId` | partial (composer quote only) | yes | yes | n/a | no | n/a | no | PARTIAL |
 | Group conversations | — | no | no | no (`Conversation` is a two-member pair) | n/a | n/a | n/a | no | NOT IMPLEMENTED |
-| Message attachments | `Message.fileUrl`, `DirectMessage.fileUrl` | partial (URL field) | partial | partial (URL string) | no | n/a | no | no | NOT IMPLEMENTED |
+| Message / DM attachments (real uploaded files) | `src/app/api/messages/route.ts`, `src/app/api/direct-messages/route.ts`, `src/lib/attachments.ts`, `views/messages.tsx`, `views/spaces.tsx` | yes | yes | yes (`Attachment` rows) | yes | yes (attachments included in the broadcast payload) | yes (owner claims; readers must be conversation/space members) | yes (`test/uploads.test.ts`) | IMPLEMENTED |
+| Legacy URL-only media fields (`Message.fileUrl`, `DirectMessage.fileUrl`) | `prisma/schema.prisma` | partial | partial | partial (URL string) | no | n/a | no | no | PARTIAL (superseded by `Attachment`; kept for compatibility, not yet removed) |
 | Per-conversation settings (mute, disappearing, receipts opt-out) | — | no | no | no | n/a | n/a | n/a | no | NOT IMPLEMENTED |
 
 ## Communities & spaces
@@ -130,14 +132,20 @@ the audit, with no regression test yet.
 
 | Feature | Location | Frontend | Backend | Database | Storage | Realtime | Authorization | Tests | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| Storage abstraction (upload/download/delete/metadata/signed access) | — | no | no | no | no | n/a | no | no | NOT IMPLEMENTED |
-| `File`/`Attachment` model | — | no | no | no | no | n/a | no | no | NOT IMPLEMENTED |
-| Real uploads (picker, drag/drop, progress, cancel, retry) | — | no | no | no | no | n/a | no | no | NOT IMPLEMENTED |
-| MIME sniffing, size limits, filename sanitization | — | no | no | no | no | n/a | no | no | NOT IMPLEMENTED |
+| Storage abstraction (put/get/head/delete/metadata/signed access) | `src/lib/storage/` | n/a | yes | n/a | yes | n/a | n/a | yes (`test/storage-drivers.test.ts`) | IMPLEMENTED |
+| Local development storage driver | `src/lib/storage/local-driver.ts` | n/a | yes | n/a | yes (dev/test only — no replication or lifecycle rules) | n/a | yes (root containment) | yes (`test/storage-drivers.test.ts`) | IMPLEMENTED |
+| S3 / Cloudflare R2 / MinIO driver | `src/lib/storage/s3-driver.ts` | n/a | yes | n/a | yes (private objects, presigned reads) | n/a | yes | yes (mocked S3 client only, `test/storage-drivers.test.ts`) | PARTIAL (implemented but not yet verified against a real R2/S3 bucket — no credentials provisioned) |
+| `Attachment` model (owner, driver, key, type, size, sha256, scan status) | `prisma/schema.prisma`, `prisma/migrations/20260820101504_attachments/` | n/a | yes | yes | yes | n/a | yes | yes (`test/uploads.test.ts`) | IMPLEMENTED |
+| Authenticated upload API | `src/app/api/uploads/route.ts`, `src/lib/attachments.ts` | yes | yes | yes | yes | n/a | yes (session required, owner recorded) | yes (`test/uploads.test.ts`) | IMPLEMENTED |
+| Real uploads (picker, drag/drop, progress, cancel, retry) | `src/lib/use-uploads.ts`, `src/components/dyne/attachments.tsx`, `views/messages.tsx`, `views/spaces.tsx` | yes | yes | yes | yes | n/a | yes | partial (API covered by `test/uploads.test.ts`; no browser test of the tray yet) | PARTIAL |
+| MIME sniffing from bytes, size limits, filename sanitization, safe-type allowlist | `src/lib/storage/file-types.ts` | yes (server-advertised `accept`) | yes | yes | n/a | n/a | n/a | yes (`test/uploads.test.ts`) | IMPLEMENTED |
+| Authorized download + non-executable response headers | `src/app/api/attachments/[id]/content/route.ts` | yes | yes | yes | yes | n/a | yes (owner, or members of the message/DM/post's resource) | yes (`test/uploads.test.ts`) | IMPLEMENTED |
+| Attachment delete (owner-only, bytes removed, row soft-deleted) | `src/app/api/attachments/[id]/route.ts` | yes | yes | yes | yes | n/a | yes | yes (`test/uploads.test.ts`) | IMPLEMENTED |
+| Attachment previews (image/video/audio inline, others download) | `src/components/dyne/attachments.tsx` | yes | yes | yes | yes | n/a | yes | partial (headers tested; rendering not) | PARTIAL |
 | Avatars | `src/app/api/profile/me/route.ts` (`avatarUrl`, up to 500 KB string) | yes | yes | yes (URL/base64 string in the row) | no | no | partial | no | PARTIAL |
 | Post/story/reel/message media | `mediaUrl` / `videoUrl` / `fileUrl` columns | yes (URL input) | partial (no URL validation) | partial (string) | no | no | no | no | PARTIAL |
 | Thumbnails / transcoding | — | no | no | no | no | n/a | n/a | no | NOT IMPLEMENTED |
-| Malware scanning | — | no | no | no | no | n/a | n/a | no | NOT IMPLEMENTED (no scanner available; not claimed anywhere in the product) |
+| Malware scanning | `src/lib/storage/scanner.ts` (interface + no-op) | n/a | partial (abstraction only) | yes (`scanStatus`/`scanner` recorded) | n/a | n/a | n/a | no | NOT IMPLEMENTED (no scanner deployed; every attachment records `SKIPPED`/`none` and nothing claims otherwise) |
 
 ## Personalization & preferences
 

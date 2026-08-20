@@ -30,6 +30,8 @@ import { ViewHeader, ViewContainer } from "./view-header";
 import { Loading, EmptyState } from "@/components/dyne/states";
 import { useAppStore } from "@/store/app-store";
 import { useConversationRealtime } from "@/lib/realtime-client";
+import { useUploads, type UploadedAttachment } from "@/lib/use-uploads";
+import { AttachButton, AttachmentList, DropZone, UploadTray } from "@/components/dyne/attachments";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 
@@ -56,6 +58,7 @@ interface ConversationListItem {
 interface ChatMessage {
   id: string;
   content: string;
+  attachments?: UploadedAttachment[];
   fileUrl: string | null;
   fileKind: string | null;
   replyToId: string | null;
@@ -281,11 +284,17 @@ function ConversationView({
     }
   }, [messages.length]);
 
+  const uploads = useUploads();
   const sendMutation = useMutation({
-    mutationFn: (data: { content: string }) =>
-      api.post("/api/direct-messages", { conversationId, content: data.content }),
+    mutationFn: (data: { content: string; attachmentIds: string[] }) =>
+      api.post("/api/direct-messages", {
+        conversationId,
+        content: data.content,
+        attachmentIds: data.attachmentIds,
+      }),
     onSuccess: () => {
       setMessageText("");
+      uploads.clear();
       sendTyping(false);
     },
     onError: (err) => toast.error((err as Error).message || "Could not send"),
@@ -299,8 +308,9 @@ function ConversationView({
   }
 
   function handleSend() {
-    if (!messageText.trim()) return;
-    sendMutation.mutate({ content: messageText.trim() });
+    if (!messageText.trim() && uploads.readyIds.length === 0) return;
+    if (uploads.isUploading) return;
+    sendMutation.mutate({ content: messageText.trim(), attachmentIds: uploads.readyIds });
   }
 
   // Group messages by date
@@ -392,8 +402,15 @@ function ConversationView({
         </div>
       </ScrollArea>
 
-      <div className="border-t border-border p-3 shrink-0">
+      <DropZone onFiles={uploads.add} className="border-t border-border p-3 shrink-0">
+        <UploadTray
+          items={uploads.items}
+          onCancel={uploads.cancel}
+          onRetry={uploads.retry}
+          onRemove={uploads.remove}
+        />
         <div className="flex gap-2 items-end">
+          <AttachButton onFiles={uploads.add} />
           <Input
             value={messageText}
             onChange={handleInputChange}
@@ -406,11 +423,18 @@ function ConversationView({
             }}
             className="flex-1"
           />
-          <Button onClick={handleSend} disabled={sendMutation.isPending || !messageText.trim()}>
+          <Button
+            onClick={handleSend}
+            disabled={
+              sendMutation.isPending ||
+              uploads.isUploading ||
+              (!messageText.trim() && uploads.readyIds.length === 0)
+            }
+          >
             {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
-      </div>
+      </DropZone>
     </div>
   );
 }
@@ -480,9 +504,7 @@ function DMMessageItem({ message, isOwn }: { message: ChatMessage; isOwn: boolea
             )}
           >
             {message.isDeleted ? "This message has been deleted." : message.content}
-            {message.fileUrl && message.fileKind === "IMAGE" && (
-              <img src={message.fileUrl} alt="" className="rounded-md max-h-72 mt-1" />
-            )}
+            {!message.isDeleted && <AttachmentList attachments={message.attachments ?? []} />}
             {message.isEdited && !message.isDeleted && (
               <span className="text-[10px] opacity-60 ml-1">(edited)</span>
             )}

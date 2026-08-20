@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { withUserId } from "@/lib/server-auth";
+import { publicAttachment } from "@/lib/attachments";
 
 const listQuerySchema = z.object({
   conversationId: z.string().min(1),
@@ -39,12 +40,15 @@ export const GET = withUserId(
       ...(q.cursor ? { skip: 1, cursor: { id: q.cursor } } : {}),
       include: {
         author: { select: { id: true, name: true, username: true, avatarUrl: true, isOnline: true } },
+        attachments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
       },
     });
     const hasMore = messages.length > q.limit;
     const items = hasMore ? messages.slice(0, q.limit) : messages;
     return NextResponse.json({
-      messages: items.reverse(),
+      messages: items
+        .map((m) => ({ ...m, attachments: m.attachments.map(publicAttachment) }))
+        .reverse(),
       nextCursor: hasMore ? items[items.length - 1]?.id : null,
     });
   }

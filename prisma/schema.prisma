@@ -15,21 +15,21 @@ datasource db {
 // ------------------------------
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  passwordHash  String
-  institution   String?
-  semesterName  String?
-  onboarded     Boolean   @default(false)
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  institution  String?
+  semesterName String?
+  onboarded    Boolean   @default(false)
   // Social/Profile fields
-  username      String?   @unique
-  bio           String?
-  avatarUrl     String?
-  isOnline      Boolean   @default(false)
-  lastSeen      DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  username     String?   @unique
+  bio          String?
+  avatarUrl    String?
+  isOnline     Boolean   @default(false)
+  lastSeen     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   accounts      Account[]
   sessions      Session[]
@@ -46,47 +46,50 @@ model User {
   notifications Notification[]
 
   // Social
-  posts              Post[]
-  comments           Comment[]
-  reactions          Reaction[]
-  bookmarks          Bookmark[]
+  posts                Post[]
+  comments             Comment[]
+  reactions            Reaction[]
+  bookmarks            Bookmark[]
   communityMemberships CommunityMember[]
-  communityCreated   Community[]
+  communityCreated     Community[]
 
   // Communication
-  spaceMemberships   SpaceMember[]
-  spaceOwned         Space[]
-  channelsCreated    Channel[]
-  messages           Message[]
-  directMessages     DirectMessage[]
-  conversationsInitiated Conversation[] @relation("ConversationMemberOne")
-  conversationsReceived  Conversation[] @relation("ConversationMemberTwo")
-  callsInitiated     Call[]           @relation("CallCaller")
-  callsReceived      Call[]           @relation("CallCallee")
+  spaceMemberships       SpaceMember[]
+  spaceOwned             Space[]
+  channelsCreated        Channel[]
+  messages               Message[]
+  directMessages         DirectMessage[]
+  conversationsInitiated Conversation[]  @relation("ConversationMemberOne")
+  conversationsReceived  Conversation[]  @relation("ConversationMemberTwo")
+  callsInitiated         Call[]          @relation("CallCaller")
+  callsReceived          Call[]          @relation("CallCallee")
 
   // Social graph (follow)
-  following          Follow[]         @relation("Follower")
-  followers          Follow[]         @relation("Followed")
+  following Follow[] @relation("Follower")
+  followers Follow[] @relation("Followed")
 
   // Instagram-class social
-  stories            Story[]
-  storyViews         StoryView[]
-  storyReactions     StoryReaction[]
-  reels              Reel[]
-  reelLikes          ReelLike[]
-  reelComments       ReelComment[]
-  reelViews          ReelView[]
-  postLikes          PostLike[]
-  blocks             Block[]         @relation("Blocker")
-  blockedBy          Block[]         @relation("Blocked")
-  mutes              Mute[]          @relation("Muter")
-  mutedBy            Mute[]          @relation("Muted")
-  reportsFiled       Report[]        @relation("Reporter")
-  reportsAgainst     Report[]        @relation("ReportedUser")
-  messageReactions   MessageReaction[]
+  stories             Story[]
+  storyViews          StoryView[]
+  storyReactions      StoryReaction[]
+  reels               Reel[]
+  reelLikes           ReelLike[]
+  reelComments        ReelComment[]
+  reelViews           ReelView[]
+  postLikes           PostLike[]
+  blocks              Block[]              @relation("Blocker")
+  blockedBy           Block[]              @relation("Blocked")
+  mutes               Mute[]               @relation("Muter")
+  mutedBy             Mute[]               @relation("Muted")
+  reportsFiled        Report[]             @relation("Reporter")
+  reportsAgainst      Report[]             @relation("ReportedUser")
+  messageReactions    MessageReaction[]
   messageReadReceipts MessageReadReceipt[]
-  dmReactions        DMReaction[]
-  dmReadReceipts     DMReadReceipt[]
+  dmReactions         DMReaction[]
+  dmReadReceipts      DMReadReceipt[]
+
+  // Storage
+  attachments Attachment[]
 }
 
 model Account {
@@ -144,21 +147,21 @@ model Semester {
 }
 
 model Course {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
-  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  user       User      @relation(onDelete: Cascade, fields: [userId], references: [id])
   semesterId String?
   semester   Semester? @relation(onDelete: SetNull, fields: [semesterId], references: [id])
   name       String
   code       String
   professor  String?
-  color      String   @default("#0ea5e9")
+  color      String    @default("#0ea5e9")
   icon       String?
   location   String?
   credits    Float?
   syllabus   String?
-  createdAt  DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   assignments   Assignment[]
   exams         Exam[]
@@ -184,7 +187,7 @@ model Assignment {
   dueTime         String?
   status          String   @default("TODO") // TODO | IN_PROGRESS | COMPLETED
   priority        String   @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
-  estimatedEffort Int?     // minutes
+  estimatedEffort Int? // minutes
   progress        Int      @default(0) // 0..100
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -198,24 +201,24 @@ model Assignment {
 }
 
 model Task {
-  id                 String      @id @default(cuid())
-  userId             String
-  user               User        @relation(onDelete: Cascade, fields: [userId], references: [id])
-  courseId           String?
-  course             Course?     @relation(onDelete: SetNull, fields: [courseId], references: [id])
-  assignmentId       String?
-  assignment         Assignment? @relation(onDelete: SetNull, fields: [assignmentId], references: [id])
-  title              String
-  description        String?
-  status             String      @default("TODO") // TODO | IN_PROGRESS | COMPLETED
-  priority           String      @default("MEDIUM")
-  dueDate            DateTime?
-  dueTime            String?
-  estimatedDuration  Int?        // minutes
-  tags               String      @default("")
-  order              Int         @default(0)
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(onDelete: Cascade, fields: [userId], references: [id])
+  courseId          String?
+  course            Course?     @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  assignmentId      String?
+  assignment        Assignment? @relation(onDelete: SetNull, fields: [assignmentId], references: [id])
+  title             String
+  description       String?
+  status            String      @default("TODO") // TODO | IN_PROGRESS | COMPLETED
+  priority          String      @default("MEDIUM")
+  dueDate           DateTime?
+  dueTime           String?
+  estimatedDuration Int? // minutes
+  tags              String      @default("")
+  order             Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   @@index([userId])
   @@index([assignmentId])
@@ -225,21 +228,21 @@ model Task {
 }
 
 model Exam {
-  id                 String   @id @default(cuid())
-  userId             String
-  user               User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  courseId           String?
-  course             Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
-  title              String
-  date               DateTime
-  time               String?
-  location           String?
-  topics             String   @default("")
-  importance         String   @default("HIGH") // LOW | MEDIUM | HIGH | URGENT
-  preparationProgress Int     @default(0) // 0..100
-  studyNotes         String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  courseId            String?
+  course              Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  title               String
+  date                DateTime
+  time                String?
+  location            String?
+  topics              String   @default("")
+  importance          String   @default("HIGH") // LOW | MEDIUM | HIGH | URGENT
+  preparationProgress Int      @default(0) // 0..100
+  studyNotes          String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   notes Note[]
 
@@ -258,7 +261,7 @@ model Event {
   type        String   @default("PERSONAL") // CLASS | ASSIGNMENT | EXAM | TASK | STUDY | PERSONAL
   startDate   DateTime
   endDate     DateTime
-  recurrence   String? // DAILY | WEEKLY | MONTHLY | null
+  recurrence  String? // DAILY | WEEKLY | MONTHLY | null
   location    String?
   description String?
   createdAt   DateTime @default(now())
@@ -278,13 +281,13 @@ model Note {
   assignmentId String?
   assignment   Assignment? @relation(onDelete: SetNull, fields: [assignmentId], references: [id])
   examId       String?
-  exam         Exam?        @relation(onDelete: SetNull, fields: [examId], references: [id])
+  exam         Exam?       @relation(onDelete: SetNull, fields: [examId], references: [id])
   title        String
-  content      String     @default("")
-  tags         String     @default("")
-  pinned       Boolean    @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  content      String      @default("")
+  tags         String      @default("")
+  pinned       Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([userId])
   @@index([courseId])
@@ -310,16 +313,16 @@ model Goal {
 }
 
 model Habit {
-  id            String     @id @default(cuid())
+  id            String   @id @default(cuid())
   userId        String
-  user          User       @relation(onDelete: Cascade, fields: [userId], references: [id])
+  user          User     @relation(onDelete: Cascade, fields: [userId], references: [id])
   name          String
   description   String?
-  color         String     @default("#10b981")
-  frequency     String     @default("DAILY")
-  targetPerWeek Int        @default(7)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  color         String   @default("#10b981")
+  frequency     String   @default("DAILY")
+  targetPerWeek Int      @default(7)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   habitLogs HabitLog[]
 
@@ -341,18 +344,18 @@ model HabitLog {
 }
 
 model StudySession {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
-  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  user        User      @relation(onDelete: Cascade, fields: [userId], references: [id])
   courseId    String?
-  course      Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  course      Course?   @relation(onDelete: SetNull, fields: [courseId], references: [id])
   taskId      String?
   startTime   DateTime
   endTime     DateTime?
-  duration    Int      @default(0) // minutes
-  focusStatus String   @default("FOCUSED") // FOCUSED | DISTRACTED | INTERRUPTED
+  duration    Int       @default(0) // minutes
+  focusStatus String    @default("FOCUSED") // FOCUSED | DISTRACTED | INTERRUPTED
   notes       String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   @@index([userId])
   @@index([courseId])
@@ -399,13 +402,13 @@ model Community {
 }
 
 model CommunityMember {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   communityId String
   community   Community @relation(onDelete: Cascade, fields: [communityId], references: [id])
   userId      String
-  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  role        String   @default("MEMBER") // ADMIN | MODERATOR | MEMBER
-  joinedAt    DateTime @default(now())
+  user        User      @relation(onDelete: Cascade, fields: [userId], references: [id])
+  role        String    @default("MEMBER") // ADMIN | MODERATOR | MEMBER
+  joinedAt    DateTime  @default(now())
 
   @@unique([communityId, userId])
   @@index([communityId])
@@ -413,33 +416,34 @@ model CommunityMember {
 }
 
 model Post {
-  id          String   @id @default(cuid())
-  communityId String
-  community   Community @relation(onDelete: Cascade, fields: [communityId], references: [id])
-  authorId    String
-  author      User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
-  title       String
-  content     String   @default("")
-  mediaUrl    String?  // image URL (data: URL or external)
-  mediaKind   String?  // IMAGE | VIDEO | LINK | null
-  linkUrl     String?
-  isEdited    Boolean  @default(false)
-  isPinned    Boolean  @default(false)
+  id           String    @id @default(cuid())
+  communityId  String
+  community    Community @relation(onDelete: Cascade, fields: [communityId], references: [id])
+  authorId     String
+  author       User      @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  title        String
+  content      String    @default("")
+  mediaUrl     String? // image URL (data: URL or external)
+  mediaKind    String? // IMAGE | VIDEO | LINK | null
+  linkUrl      String?
+  isEdited     Boolean   @default(false)
+  isPinned     Boolean   @default(false)
   // Optional: link to a course/assignment/exam for context-aware discussion
   courseId     String?
   assignmentId String?
-  examId      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  examId       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  comments   Comment[]
-  reactions  Reaction[]
-  bookmarks  Bookmark[]
+  comments    Comment[]
+  reactions   Reaction[]
+  bookmarks   Bookmark[]
+  attachments Attachment[]
 
   // Instagram-class relations
-  likes      PostLike[]
-  media      PostMedia[]
-  hashtags   PostHashtag[]
+  likes    PostLike[]
+  media    PostMedia[]
+  hashtags PostHashtag[]
 
   @@index([communityId])
   @@index([authorId])
@@ -447,18 +451,18 @@ model Post {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   postId    String
-  post      Post     @relation(onDelete: Cascade, fields: [postId], references: [id])
+  post      Post      @relation(onDelete: Cascade, fields: [postId], references: [id])
   authorId  String
-  author    User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
-  parentId  String?  // self-reference for nested replies
-  parent    Comment? @relation("CommentReplies", onDelete: NoAction, fields: [parentId], references: [id])
+  author    User      @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  parentId  String? // self-reference for nested replies
+  parent    Comment?  @relation("CommentReplies", onDelete: NoAction, fields: [parentId], references: [id])
   replies   Comment[] @relation("CommentReplies")
   content   String
-  isEdited  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isEdited  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   reactions Reaction[]
 
@@ -468,15 +472,15 @@ model Comment {
 }
 
 model Reaction {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  postId     String?
-  post       Post?    @relation(onDelete: Cascade, fields: [postId], references: [id])
-  commentId  String?
-  comment    Comment? @relation(onDelete: Cascade, fields: [commentId], references: [id])
-  isUpvote   Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  postId    String?
+  post      Post?    @relation(onDelete: Cascade, fields: [postId], references: [id])
+  commentId String?
+  comment   Comment? @relation(onDelete: Cascade, fields: [commentId], references: [id])
+  isUpvote  Boolean  @default(true)
+  createdAt DateTime @default(now())
 
   @@unique([userId, postId])
   @@unique([userId, commentId])
@@ -497,12 +501,12 @@ model Bookmark {
 }
 
 model Follow {
-  id          String   @id @default(cuid())
-  followerId  String
-  follower    User     @relation("Follower", onDelete: Cascade, fields: [followerId], references: [id])
-  followedId  String
-  followed    User     @relation("Followed", onDelete: Cascade, fields: [followedId], references: [id])
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  followerId String
+  follower   User     @relation("Follower", onDelete: Cascade, fields: [followerId], references: [id])
+  followedId String
+  followed   User     @relation("Followed", onDelete: Cascade, fields: [followedId], references: [id])
+  createdAt  DateTime @default(now())
 
   @@unique([followerId, followedId])
   @@index([followerId])
@@ -528,20 +532,20 @@ model Space {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members SpaceMember[]
+  members  SpaceMember[]
   channels Channel[]
 
   @@index([ownerId])
 }
 
 model SpaceMember {
-  id        String   @id @default(cuid())
-  spaceId   String
-  space     Space    @relation(onDelete: Cascade, fields: [spaceId], references: [id])
-  userId    String
-  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  role      String   @default("MEMBER") // ADMIN | MODERATOR | MEMBER
-  joinedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  spaceId  String
+  space    Space    @relation(onDelete: Cascade, fields: [spaceId], references: [id])
+  userId   String
+  user     User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  role     String   @default("MEMBER") // ADMIN | MODERATOR | MEMBER
+  joinedAt DateTime @default(now())
 
   @@unique([spaceId, userId])
   @@index([spaceId])
@@ -568,28 +572,29 @@ model Channel {
 }
 
 model Message {
-  id          String   @id @default(cuid())
-  channelId   String
-  channel     Channel  @relation(onDelete: Cascade, fields: [channelId], references: [id])
-  authorId    String
-  author      User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
-  content     String   @default("")
-  fileUrl     String?
-  fileKind    String?  // IMAGE | PDF | OTHER
-  replyToId   String?  // optional: message being replied to
-  isEdited    Boolean  @default(false)
-  isDeleted   Boolean  @default(false) // soft delete
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  channelId String
+  channel   Channel  @relation(onDelete: Cascade, fields: [channelId], references: [id])
+  authorId  String
+  author    User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  content   String   @default("")
+  fileUrl   String?
+  fileKind  String? // IMAGE | PDF | OTHER
+  replyToId String? // optional: message being replied to
+  isEdited  Boolean  @default(false)
+  isDeleted Boolean  @default(false) // soft delete
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Instagram-class relations
+  reactions    MessageReaction[]
+  readReceipts MessageReadReceipt[]
+  attachments  Attachment[]
 
   @@index([channelId])
   @@index([authorId])
   @@index([createdAt])
   @@index([channelId, createdAt])
-
-  // Instagram-class relations
-  reactions     MessageReaction[]
-  readReceipts  MessageReadReceipt[]
 }
 
 model Conversation {
@@ -611,47 +616,48 @@ model Conversation {
 }
 
 model DirectMessage {
-  id              String   @id @default(cuid())
-  conversationId  String
-  conversation    Conversation @relation(onDelete: Cascade, fields: [conversationId], references: [id])
-  authorId        String
-  author          User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
-  content         String   @default("")
-  fileUrl         String?
-  fileKind        String?
-  replyToId       String?
-  isEdited        Boolean  @default(false)
-  isDeleted       Boolean  @default(false) // soft delete
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(onDelete: Cascade, fields: [conversationId], references: [id])
+  authorId       String
+  author         User         @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  content        String       @default("")
+  fileUrl        String?
+  fileKind       String?
+  replyToId      String?
+  isEdited       Boolean      @default(false)
+  isDeleted      Boolean      @default(false) // soft delete
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Instagram-class relations
+  dmReactions    DMReaction[]
+  dmReadReceipts DMReadReceipt[]
+  attachments    Attachment[]
 
   @@index([conversationId])
   @@index([authorId])
   @@index([createdAt])
   @@index([conversationId, createdAt])
-
-  // Instagram-class relations
-  dmReactions     DMReaction[]
-  dmReadReceipts  DMReadReceipt[]
 }
 
 model Call {
   // Persisted call lifecycle (no real WebRTC — for history & incoming-call UI only)
-  id              String   @id @default(cuid())
-  conversationId  String?
-  conversation     Conversation? @relation(onDelete: SetNull, fields: [conversationId], references: [id])
-  callerId        String?
-  caller          User?    @relation("CallCaller", onDelete: SetNull, fields: [callerId], references: [id])
-  calleeId        String?
-  callee          User?    @relation("CallCallee", onDelete: SetNull, fields: [calleeId], references: [id])
-  isAccepted      Boolean  @default(false)
-  isRejected      Boolean  @default(false)
-  isCanceled      Boolean  @default(false)
-  isMissed        Boolean  @default(false)
-  isEnded         Boolean  @default(false)
-  endedAt         DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String        @id @default(cuid())
+  conversationId String?
+  conversation   Conversation? @relation(onDelete: SetNull, fields: [conversationId], references: [id])
+  callerId       String?
+  caller         User?         @relation("CallCaller", onDelete: SetNull, fields: [callerId], references: [id])
+  calleeId       String?
+  callee         User?         @relation("CallCallee", onDelete: SetNull, fields: [calleeId], references: [id])
+  isAccepted     Boolean       @default(false)
+  isRejected     Boolean       @default(false)
+  isCanceled     Boolean       @default(false)
+  isMissed       Boolean       @default(false)
+  isEnded        Boolean       @default(false)
+  endedAt        DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([conversationId])
   @@index([callerId])
@@ -664,30 +670,30 @@ model Call {
 // ============================================================
 
 model Story {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  mediaUrl    String
-  mediaKind   String   @default("IMAGE") // IMAGE | VIDEO
-  caption     String?
-  duration    Int      @default(5) // seconds to display
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  mediaUrl  String
+  mediaKind String   @default("IMAGE") // IMAGE | VIDEO
+  caption   String?
+  duration  Int      @default(5) // seconds to display
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
-  views      StoryView[]
-  reactions  StoryReaction[]
+  views     StoryView[]
+  reactions StoryReaction[]
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model StoryView {
-  id        String   @id @default(cuid())
-  storyId   String
-  story     Story    @relation(onDelete: Cascade, fields: [storyId], references: [id])
-  userId    String
-  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  viewedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  storyId  String
+  story    Story    @relation(onDelete: Cascade, fields: [storyId], references: [id])
+  userId   String
+  user     User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  viewedAt DateTime @default(now())
 
   @@unique([storyId, userId])
   @@index([storyId])
@@ -708,21 +714,21 @@ model StoryReaction {
 }
 
 model Reel {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  videoUrl    String
-  posterUrl   String?
-  caption     String   @default("")
-  audioTitle  String?
-  hashtags    String   @default("")
-  views       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  videoUrl   String
+  posterUrl  String?
+  caption    String   @default("")
+  audioTitle String?
+  hashtags   String   @default("")
+  views      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  likes      ReelLike[]
-  comments   ReelComment[]
-  reelViews  ReelView[]
+  likes     ReelLike[]
+  comments  ReelComment[]
+  reelViews ReelView[]
 
   @@index([userId])
   @@index([createdAt])
@@ -741,17 +747,17 @@ model ReelLike {
 }
 
 model ReelComment {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   reelId    String
-  reel      Reel     @relation(onDelete: Cascade, fields: [reelId], references: [id])
+  reel      Reel          @relation(onDelete: Cascade, fields: [reelId], references: [id])
   authorId  String
-  author    User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  author    User          @relation(onDelete: Cascade, fields: [authorId], references: [id])
   content   String
   parentId  String?
-  parent    ReelComment? @relation("ReelCommentReplies", onDelete: Cascade, fields: [parentId], references: [id])
+  parent    ReelComment?  @relation("ReelCommentReplies", onDelete: Cascade, fields: [parentId], references: [id])
   replies   ReelComment[] @relation("ReelCommentReplies")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@index([reelId])
   @@index([authorId])
@@ -759,12 +765,12 @@ model ReelComment {
 }
 
 model ReelView {
-  id        String   @id @default(cuid())
-  reelId    String
-  reel      Reel     @relation(onDelete: Cascade, fields: [reelId], references: [id])
-  userId    String
-  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  viewedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  reelId   String
+  reel     Reel     @relation(onDelete: Cascade, fields: [reelId], references: [id])
+  userId   String
+  user     User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  viewedAt DateTime @default(now())
 
   @@unique([reelId, userId])
   @@index([reelId])
@@ -801,7 +807,7 @@ model Hashtag {
   name      String   @unique
   createdAt DateTime @default(now())
 
-  posts     PostHashtag[]
+  posts PostHashtag[]
 
   @@index([name])
 }
@@ -819,12 +825,12 @@ model PostHashtag {
 }
 
 model Block {
-  id         String   @id @default(cuid())
-  blockerId  String
-  blocker    User     @relation("Blocker", onDelete: Cascade, fields: [blockerId], references: [id])
-  blockedId  String
-  blocked    User     @relation("Blocked", onDelete: Cascade, fields: [blockedId], references: [id])
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("Blocker", onDelete: Cascade, fields: [blockerId], references: [id])
+  blockedId String
+  blocked   User     @relation("Blocked", onDelete: Cascade, fields: [blockedId], references: [id])
+  createdAt DateTime @default(now())
 
   @@unique([blockerId, blockedId])
   @@index([blockerId])
@@ -844,68 +850,119 @@ model Mute {
 }
 
 model Report {
-  id           String   @id @default(cuid())
-  reporterId   String
-  reporter     User     @relation("Reporter", onDelete: Cascade, fields: [reporterId], references: [id])
+  id             String   @id @default(cuid())
+  reporterId     String
+  reporter       User     @relation("Reporter", onDelete: Cascade, fields: [reporterId], references: [id])
   reportedUserId String?
-  reportedUser  User?   @relation("ReportedUser", onDelete: SetNull, fields: [reportedUserId], references: [id])
-  targetType   String   // POST | COMMENT | REEL | STORY | USER | MESSAGE
-  targetId     String
-  reason       String
-  status       String   @default("PENDING") // PENDING | REVIEWED | ACTIONED | DISMISSED
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  reportedUser   User?    @relation("ReportedUser", onDelete: SetNull, fields: [reportedUserId], references: [id])
+  targetType     String // POST | COMMENT | REEL | STORY | USER | MESSAGE
+  targetId       String
+  reason         String
+  status         String   @default("PENDING") // PENDING | REVIEWED | ACTIONED | DISMISSED
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([reporterId])
   @@index([status])
 }
 
 model MessageReaction {
-  id         String   @id @default(cuid())
-  messageId  String
-  message    Message  @relation(onDelete: Cascade, fields: [messageId], references: [id])
-  userId     String
-  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  emoji      String   @default("❤️")
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(onDelete: Cascade, fields: [messageId], references: [id])
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  emoji     String   @default("❤️")
+  createdAt DateTime @default(now())
 
   @@unique([messageId, userId])
   @@index([messageId])
 }
 
 model MessageReadReceipt {
-  id         String   @id @default(cuid())
-  messageId  String
-  message    Message  @relation(onDelete: Cascade, fields: [messageId], references: [id])
-  userId     String
-  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  readAt     DateTime @default(now())
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(onDelete: Cascade, fields: [messageId], references: [id])
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  readAt    DateTime @default(now())
 
   @@unique([messageId, userId])
   @@index([messageId])
 }
 
 model DMReaction {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   directMessageId String
   directMessage   DirectMessage @relation(onDelete: Cascade, fields: [directMessageId], references: [id])
   userId          String
-  user            User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  emoji           String   @default("❤️")
-  createdAt       DateTime @default(now())
+  user            User          @relation(onDelete: Cascade, fields: [userId], references: [id])
+  emoji           String        @default("❤️")
+  createdAt       DateTime      @default(now())
 
   @@unique([directMessageId, userId])
   @@index([directMessageId])
 }
 
 model DMReadReceipt {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   directMessageId String
   directMessage   DirectMessage @relation(onDelete: Cascade, fields: [directMessageId], references: [id])
   userId          String
-  user            User     @relation(onDelete: Cascade, fields: [userId], references: [id])
-  readAt          DateTime @default(now())
+  user            User          @relation(onDelete: Cascade, fields: [userId], references: [id])
+  readAt          DateTime      @default(now())
 
   @@unique([directMessageId, userId])
   @@index([directMessageId])
+}
+
+// ============================================================
+// STORAGE LAYER
+// Uploaded bytes live in object storage (local disk driver in dev,
+// S3/R2 in production); this table is the authoritative metadata and
+// ownership record for them.
+// ============================================================
+
+model Attachment {
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation(onDelete: Cascade, fields: [ownerId], references: [id])
+
+  // Object storage location. `driver` records which backend holds the bytes
+  // so a database moved between environments cannot mis-resolve keys.
+  driver     String
+  bucket     String?
+  storageKey String  @unique
+
+  filename    String // sanitized original name, for downloads
+  contentType String // sniffed from the bytes, never the browser's claim
+  extension   String // canonical extension for the sniffed type
+  byteSize    Int
+  checksum    String // sha256 of the stored bytes
+  kind        String // IMAGE | VIDEO | AUDIO | PDF | DOCUMENT | SPREADSHEET | PRESENTATION | TEXT | ARCHIVE | OTHER
+  width       Int?
+  height      Int?
+
+  visibility String @default("PRIVATE") // PRIVATE | ATTACHED
+  scanStatus String @default("SKIPPED") // PENDING | CLEAN | INFECTED | ERROR | SKIPPED
+  scanner    String @default("none")
+
+  // Where the attachment has been used. All optional: an upload starts
+  // unattached and is claimed when the message/post is created.
+  messageId       String?
+  message         Message?       @relation(onDelete: Cascade, fields: [messageId], references: [id])
+  directMessageId String?
+  directMessage   DirectMessage? @relation(onDelete: Cascade, fields: [directMessageId], references: [id])
+  postId          String?
+  post            Post?          @relation(onDelete: Cascade, fields: [postId], references: [id])
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([ownerId])
+  @@index([messageId])
+  @@index([directMessageId])
+  @@index([postId])
+  @@index([createdAt])
 }
