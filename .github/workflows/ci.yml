@@ -41,6 +41,9 @@ jobs:
         with:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
+      # next build typechecks every .ts under the repo, including the service
+      - run: bun install
+        working-directory: mini-services/realtime
       - run: bun run db:generate
       - run: bunx playwright install --with-deps chromium
       - run: bun run build
