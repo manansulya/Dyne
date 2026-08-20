@@ -1,0 +1,911 @@
+// Dyne — Student Life OS
+// Prisma schema (SQLite)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------
+// Auth (NextAuth.js v4)
+// ------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String
+  institution   String?
+  semesterName  String?
+  onboarded     Boolean   @default(false)
+  // Social/Profile fields
+  username      String?   @unique
+  bio           String?
+  avatarUrl     String?
+  isOnline      Boolean   @default(false)
+  lastSeen      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  semesters     Semester[]
+  courses       Course[]
+  tasks         Task[]
+  assignments   Assignment[]
+  exams         Exam[]
+  events        Event[]
+  notes         Note[]
+  goals         Goal[]
+  habits        Habit[]
+  studySessions StudySession[]
+  notifications Notification[]
+
+  // Social
+  posts              Post[]
+  comments           Comment[]
+  reactions          Reaction[]
+  bookmarks          Bookmark[]
+  communityMemberships CommunityMember[]
+  communityCreated   Community[]
+
+  // Communication
+  spaceMemberships   SpaceMember[]
+  spaceOwned         Space[]
+  channelsCreated    Channel[]
+  messages           Message[]
+  directMessages     DirectMessage[]
+  conversationsInitiated Conversation[] @relation("ConversationMemberOne")
+  conversationsReceived  Conversation[] @relation("ConversationMemberTwo")
+  callsInitiated     Call[]           @relation("CallCaller")
+  callsReceived      Call[]           @relation("CallCallee")
+
+  // Social graph (follow)
+  following          Follow[]         @relation("Follower")
+  followers          Follow[]         @relation("Followed")
+
+  // Instagram-class social
+  stories            Story[]
+  storyViews         StoryView[]
+  storyReactions     StoryReaction[]
+  reels              Reel[]
+  reelLikes          ReelLike[]
+  reelComments       ReelComment[]
+  reelViews          ReelView[]
+  postLikes          PostLike[]
+  blocks             Block[]         @relation("Blocker")
+  blockedBy          Block[]         @relation("Blocked")
+  mutes              Mute[]          @relation("Muter")
+  mutedBy            Mute[]          @relation("Muted")
+  reportsFiled       Report[]        @relation("Reporter")
+  reportsAgainst     Report[]        @relation("ReportedUser")
+  messageReactions   MessageReaction[]
+  messageReadReceipts MessageReadReceipt[]
+  dmReactions        DMReaction[]
+  dmReadReceipts     DMReadReceipt[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(onDelete: Cascade, fields: [userId], references: [id])
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(onDelete: Cascade, fields: [userId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ------------------------------
+// Domain entities
+// ------------------------------
+
+model Semester {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+
+  courses Course[]
+
+  @@index([userId])
+}
+
+model Course {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  semesterId String?
+  semester   Semester? @relation(onDelete: SetNull, fields: [semesterId], references: [id])
+  name       String
+  code       String
+  professor  String?
+  color      String   @default("#0ea5e9")
+  icon       String?
+  location   String?
+  credits    Float?
+  syllabus   String?
+  createdAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments   Assignment[]
+  exams         Exam[]
+  tasks         Task[]
+  notes         Note[]
+  events        Event[]
+  studySessions StudySession[]
+  spaces        Space[]
+  communities   Community[]
+
+  @@index([userId])
+}
+
+model Assignment {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  courseId        String?
+  course          Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  title           String
+  description     String?
+  dueDate         DateTime
+  dueTime         String?
+  status          String   @default("TODO") // TODO | IN_PROGRESS | COMPLETED
+  priority        String   @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  estimatedEffort Int?     // minutes
+  progress        Int      @default(0) // 0..100
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tasks Task[]
+  notes Note[]
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([dueDate])
+}
+
+model Task {
+  id                 String      @id @default(cuid())
+  userId             String
+  user               User        @relation(onDelete: Cascade, fields: [userId], references: [id])
+  courseId           String?
+  course             Course?     @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  assignmentId       String?
+  assignment         Assignment? @relation(onDelete: SetNull, fields: [assignmentId], references: [id])
+  title              String
+  description        String?
+  status             String      @default("TODO") // TODO | IN_PROGRESS | COMPLETED
+  priority           String      @default("MEDIUM")
+  dueDate            DateTime?
+  dueTime            String?
+  estimatedDuration  Int?        // minutes
+  tags               String      @default("")
+  order              Int         @default(0)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([assignmentId])
+  @@index([courseId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model Exam {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  courseId           String?
+  course             Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  title              String
+  date               DateTime
+  time               String?
+  location           String?
+  topics             String   @default("")
+  importance         String   @default("HIGH") // LOW | MEDIUM | HIGH | URGENT
+  preparationProgress Int     @default(0) // 0..100
+  studyNotes         String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  notes Note[]
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([date])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  courseId    String?
+  course      Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  title       String
+  type        String   @default("PERSONAL") // CLASS | ASSIGNMENT | EXAM | TASK | STUDY | PERSONAL
+  startDate   DateTime
+  endDate     DateTime
+  recurrence   String? // DAILY | WEEKLY | MONTHLY | null
+  location    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([startDate])
+  @@index([courseId])
+}
+
+model Note {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(onDelete: Cascade, fields: [userId], references: [id])
+  courseId     String?
+  course       Course?     @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  assignmentId String?
+  assignment   Assignment? @relation(onDelete: SetNull, fields: [assignmentId], references: [id])
+  examId       String?
+  exam         Exam?        @relation(onDelete: SetNull, fields: [examId], references: [id])
+  title        String
+  content      String     @default("")
+  tags         String     @default("")
+  pinned       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([assignmentId])
+}
+
+model Goal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(onDelete: Cascade, fields: [userId], references: [id])
+  title       String
+  description String?
+  type        String    @default("CUSTOM") // STUDY_HOURS | TASKS_COMPLETED | ATTENDANCE | CUSTOM
+  target      Float
+  current     Float     @default(0)
+  unit        String    @default("")
+  deadline    DateTime?
+  status      String    @default("ACTIVE") // ACTIVE | COMPLETED | PAUSED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Habit {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(onDelete: Cascade, fields: [userId], references: [id])
+  name          String
+  description   String?
+  color         String     @default("#10b981")
+  frequency     String     @default("DAILY")
+  targetPerWeek Int        @default(7)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  habitLogs HabitLog[]
+
+  @@index([userId])
+}
+
+model HabitLog {
+  id        String   @id @default(cuid())
+  habitId   String
+  habit     Habit    @relation(onDelete: Cascade, fields: [habitId], references: [id])
+  userId    String
+  date      DateTime
+  completed Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([habitId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model StudySession {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  courseId    String?
+  course      Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  taskId      String?
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int      @default(0) // minutes
+  focusStatus String   @default("FOCUSED") // FOCUSED | DISTRACTED | INTERRUPTED
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([startTime])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO | ASSIGNMENT_DUE | EXAM_REMINDER | TASK_OVERDUE | COMMENT | REACTION | REPLY | MENTION | MESSAGE | COMMUNITY
+  read      Boolean  @default(false)
+  actionUrl String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+// ============================================================
+// SOCIAL LAYER (communities, posts, comments, reactions)
+// ============================================================
+
+model Community {
+  id          String   @id @default(cuid())
+  name        String   @unique // 3–20 chars, alphanumeric+underscore, must start with letter
+  description String?
+  iconUrl     String?
+  color       String   @default("#0d9488")
+  createdBy   String
+  creator     User     @relation(onDelete: Cascade, fields: [createdBy], references: [id])
+  // Optional: link to a Course so the community represents a course discussion space
+  courseId    String?  @unique
+  course      Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members CommunityMember[]
+  posts   Post[]
+
+  @@index([createdBy])
+}
+
+model CommunityMember {
+  id          String   @id @default(cuid())
+  communityId String
+  community   Community @relation(onDelete: Cascade, fields: [communityId], references: [id])
+  userId      String
+  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  role        String   @default("MEMBER") // ADMIN | MODERATOR | MEMBER
+  joinedAt    DateTime @default(now())
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  communityId String
+  community   Community @relation(onDelete: Cascade, fields: [communityId], references: [id])
+  authorId    String
+  author      User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  title       String
+  content     String   @default("")
+  mediaUrl    String?  // image URL (data: URL or external)
+  mediaKind   String?  // IMAGE | VIDEO | LINK | null
+  linkUrl     String?
+  isEdited    Boolean  @default(false)
+  isPinned    Boolean  @default(false)
+  // Optional: link to a course/assignment/exam for context-aware discussion
+  courseId     String?
+  assignmentId String?
+  examId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  comments   Comment[]
+  reactions  Reaction[]
+  bookmarks  Bookmark[]
+
+  // Instagram-class relations
+  likes      PostLike[]
+  media      PostMedia[]
+  hashtags   PostHashtag[]
+
+  @@index([communityId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(onDelete: Cascade, fields: [postId], references: [id])
+  authorId  String
+  author    User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  parentId  String?  // self-reference for nested replies
+  parent    Comment? @relation("CommentReplies", onDelete: NoAction, fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  content   String
+  isEdited  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reactions Reaction[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model Reaction {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  postId     String?
+  post       Post?    @relation(onDelete: Cascade, fields: [postId], references: [id])
+  commentId  String?
+  comment    Comment? @relation(onDelete: Cascade, fields: [commentId], references: [id])
+  isUpvote   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@index([postId])
+  @@index([commentId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  postId    String
+  post      Post     @relation(onDelete: Cascade, fields: [postId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("Follower", onDelete: Cascade, fields: [followerId], references: [id])
+  followedId  String
+  followed    User     @relation("Followed", onDelete: Cascade, fields: [followedId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followedId])
+  @@index([followerId])
+  @@index([followedId])
+}
+
+// ============================================================
+// COMMUNICATION LAYER (spaces, channels, messages, DMs)
+// ============================================================
+
+model Space {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  iconUrl     String?
+  color       String   @default("#0d9488")
+  inviteCode  String   @unique @default(cuid())
+  ownerId     String
+  owner       User     @relation(onDelete: Cascade, fields: [ownerId], references: [id])
+  // Optional: link to a Course so the space represents a course study group
+  courseId    String?  @unique
+  course      Course?  @relation(onDelete: SetNull, fields: [courseId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members SpaceMember[]
+  channels Channel[]
+
+  @@index([ownerId])
+}
+
+model SpaceMember {
+  id        String   @id @default(cuid())
+  spaceId   String
+  space     Space    @relation(onDelete: Cascade, fields: [spaceId], references: [id])
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  role      String   @default("MEMBER") // ADMIN | MODERATOR | MEMBER
+  joinedAt  DateTime @default(now())
+
+  @@unique([spaceId, userId])
+  @@index([spaceId])
+  @@index([userId])
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  spaceId     String
+  space       Space    @relation(onDelete: Cascade, fields: [spaceId], references: [id])
+  name        String
+  type        String   @default("TEXT") // TEXT only — no audio/video (no LiveKit available)
+  description String?
+  createdById String
+  createdBy   User     @relation(onDelete: Cascade, fields: [createdById], references: [id])
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages Message[]
+
+  @@index([spaceId])
+  @@index([createdById])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  channelId   String
+  channel     Channel  @relation(onDelete: Cascade, fields: [channelId], references: [id])
+  authorId    String
+  author      User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  content     String   @default("")
+  fileUrl     String?
+  fileKind    String?  // IMAGE | PDF | OTHER
+  replyToId   String?  // optional: message being replied to
+  isEdited    Boolean  @default(false)
+  isDeleted   Boolean  @default(false) // soft delete
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([channelId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([channelId, createdAt])
+
+  // Instagram-class relations
+  reactions     MessageReaction[]
+  readReceipts  MessageReadReceipt[]
+}
+
+model Conversation {
+  // 1:1 DM pair — get-or-create pattern
+  id          String   @id @default(cuid())
+  memberOneId String
+  memberOne   User     @relation("ConversationMemberOne", onDelete: Cascade, fields: [memberOneId], references: [id])
+  memberTwoId String
+  memberTwo   User     @relation("ConversationMemberTwo", onDelete: Cascade, fields: [memberTwoId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  directMessages DirectMessage[]
+  calls          Call[]
+
+  @@unique([memberOneId, memberTwoId])
+  @@index([memberOneId])
+  @@index([memberTwoId])
+}
+
+model DirectMessage {
+  id              String   @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(onDelete: Cascade, fields: [conversationId], references: [id])
+  authorId        String
+  author          User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  content         String   @default("")
+  fileUrl         String?
+  fileKind        String?
+  replyToId       String?
+  isEdited        Boolean  @default(false)
+  isDeleted       Boolean  @default(false) // soft delete
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([conversationId, createdAt])
+
+  // Instagram-class relations
+  dmReactions     DMReaction[]
+  dmReadReceipts  DMReadReceipt[]
+}
+
+model Call {
+  // Persisted call lifecycle (no real WebRTC — for history & incoming-call UI only)
+  id              String   @id @default(cuid())
+  conversationId  String?
+  conversation     Conversation? @relation(onDelete: SetNull, fields: [conversationId], references: [id])
+  callerId        String?
+  caller          User?    @relation("CallCaller", onDelete: SetNull, fields: [callerId], references: [id])
+  calleeId        String?
+  callee          User?    @relation("CallCallee", onDelete: SetNull, fields: [calleeId], references: [id])
+  isAccepted      Boolean  @default(false)
+  isRejected      Boolean  @default(false)
+  isCanceled      Boolean  @default(false)
+  isMissed        Boolean  @default(false)
+  isEnded         Boolean  @default(false)
+  endedAt         DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([callerId])
+  @@index([calleeId])
+}
+
+// ============================================================
+// INSTAGRAM-CLASS SOCIAL LAYER
+// Stories, Reels, Enhanced Posts, Hashtags, Likes, Blocks, Reports
+// ============================================================
+
+model Story {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  mediaUrl    String
+  mediaKind   String   @default("IMAGE") // IMAGE | VIDEO
+  caption     String?
+  duration    Int      @default(5) // seconds to display
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  views      StoryView[]
+  reactions  StoryReaction[]
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model StoryView {
+  id        String   @id @default(cuid())
+  storyId   String
+  story     Story    @relation(onDelete: Cascade, fields: [storyId], references: [id])
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  viewedAt  DateTime @default(now())
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+  @@index([userId])
+}
+
+model StoryReaction {
+  id        String   @id @default(cuid())
+  storyId   String
+  story     Story    @relation(onDelete: Cascade, fields: [storyId], references: [id])
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  emoji     String   @default("❤️")
+  createdAt DateTime @default(now())
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+}
+
+model Reel {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  videoUrl    String
+  posterUrl   String?
+  caption     String   @default("")
+  audioTitle  String?
+  hashtags    String   @default("")
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  likes      ReelLike[]
+  comments   ReelComment[]
+  reelViews  ReelView[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ReelLike {
+  id        String   @id @default(cuid())
+  reelId    String
+  reel      Reel     @relation(onDelete: Cascade, fields: [reelId], references: [id])
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([reelId, userId])
+  @@index([reelId])
+}
+
+model ReelComment {
+  id        String   @id @default(cuid())
+  reelId    String
+  reel      Reel     @relation(onDelete: Cascade, fields: [reelId], references: [id])
+  authorId  String
+  author    User     @relation(onDelete: Cascade, fields: [authorId], references: [id])
+  content   String
+  parentId  String?
+  parent    ReelComment? @relation("ReelCommentReplies", onDelete: Cascade, fields: [parentId], references: [id])
+  replies   ReelComment[] @relation("ReelCommentReplies")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reelId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model ReelView {
+  id        String   @id @default(cuid())
+  reelId    String
+  reel      Reel     @relation(onDelete: Cascade, fields: [reelId], references: [id])
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  viewedAt  DateTime @default(now())
+
+  @@unique([reelId, userId])
+  @@index([reelId])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(onDelete: Cascade, fields: [postId], references: [id])
+  userId    String
+  user      User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model PostMedia {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(onDelete: Cascade, fields: [postId], references: [id])
+  mediaUrl  String
+  mediaKind String   @default("IMAGE") // IMAGE | VIDEO
+  position  Int      @default(0)
+  altText   String?
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model Hashtag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  posts     PostHashtag[]
+
+  @@index([name])
+}
+
+model PostHashtag {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(onDelete: Cascade, fields: [postId], references: [id])
+  hashtagId String
+  hashtag   Hashtag  @relation(onDelete: Cascade, fields: [hashtagId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, hashtagId])
+  @@index([hashtagId])
+}
+
+model Block {
+  id         String   @id @default(cuid())
+  blockerId  String
+  blocker    User     @relation("Blocker", onDelete: Cascade, fields: [blockerId], references: [id])
+  blockedId  String
+  blocked    User     @relation("Blocked", onDelete: Cascade, fields: [blockedId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model Mute {
+  id        String   @id @default(cuid())
+  muterId   String
+  muter     User     @relation("Muter", onDelete: Cascade, fields: [muterId], references: [id])
+  mutedId   String
+  muted     User     @relation("Muted", onDelete: Cascade, fields: [mutedId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([muterId, mutedId])
+  @@index([muterId])
+}
+
+model Report {
+  id           String   @id @default(cuid())
+  reporterId   String
+  reporter     User     @relation("Reporter", onDelete: Cascade, fields: [reporterId], references: [id])
+  reportedUserId String?
+  reportedUser  User?   @relation("ReportedUser", onDelete: SetNull, fields: [reportedUserId], references: [id])
+  targetType   String   // POST | COMMENT | REEL | STORY | USER | MESSAGE
+  targetId     String
+  reason       String
+  status       String   @default("PENDING") // PENDING | REVIEWED | ACTIONED | DISMISSED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([reporterId])
+  @@index([status])
+}
+
+model MessageReaction {
+  id         String   @id @default(cuid())
+  messageId  String
+  message    Message  @relation(onDelete: Cascade, fields: [messageId], references: [id])
+  userId     String
+  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  emoji      String   @default("❤️")
+  createdAt  DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+}
+
+model MessageReadReceipt {
+  id         String   @id @default(cuid())
+  messageId  String
+  message    Message  @relation(onDelete: Cascade, fields: [messageId], references: [id])
+  userId     String
+  user       User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  readAt     DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+}
+
+model DMReaction {
+  id              String   @id @default(cuid())
+  directMessageId String
+  directMessage   DirectMessage @relation(onDelete: Cascade, fields: [directMessageId], references: [id])
+  userId          String
+  user            User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  emoji           String   @default("❤️")
+  createdAt       DateTime @default(now())
+
+  @@unique([directMessageId, userId])
+  @@index([directMessageId])
+}
+
+model DMReadReceipt {
+  id              String   @id @default(cuid())
+  directMessageId String
+  directMessage   DirectMessage @relation(onDelete: Cascade, fields: [directMessageId], references: [id])
+  userId          String
+  user            User     @relation(onDelete: Cascade, fields: [userId], references: [id])
+  readAt          DateTime @default(now())
+
+  @@unique([directMessageId, userId])
+  @@index([directMessageId])
+}

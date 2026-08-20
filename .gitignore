@@ -1,0 +1,30 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Local database files (SQLite) — never commit user data
+db/
+*.db
+*.db-journal
+*.sqlite
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+dev.log
+server.log
+
+# Build artifacts
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/

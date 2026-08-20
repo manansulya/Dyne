@@ -1,0 +1,187 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/*
+ * Dyne design system
+ * Warm, premium, paper-like light theme + deep ink dark theme.
+ * Primary: deep emerald ("ink emerald") — not blue/indigo.
+ * Accent: amber.
+ */
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.99 0.005 95);
+  --foreground: oklch(0.18 0.02 160);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.02 160);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.02 160);
+  /* Primary = deep emerald */
+  --primary: oklch(0.45 0.13 165);
+  --primary-foreground: oklch(0.99 0.01 95);
+  --secondary: oklch(0.96 0.01 95);
+  --secondary-foreground: oklch(0.25 0.02 160);
+  --muted: oklch(0.96 0.005 95);
+  --muted-foreground: oklch(0.52 0.01 160);
+  --accent: oklch(0.95 0.04 80);
+  --accent-foreground: oklch(0.3 0.05 80);
+  --destructive: oklch(0.58 0.24 27);
+  --border: oklch(0.92 0.01 95);
+  --input: oklch(0.92 0.01 95);
+  --ring: oklch(0.55 0.12 165);
+  --chart-1: oklch(0.55 0.13 165);
+  --chart-2: oklch(0.7 0.18 80);
+  --chart-3: oklch(0.6 0.18 250);
+  --chart-4: oklch(0.7 0.18 0);
+  --chart-5: oklch(0.65 0.18 300);
+  --sidebar: oklch(0.985 0.005 95);
+  --sidebar-foreground: oklch(0.2 0.02 160);
+  --sidebar-primary: oklch(0.45 0.13 165);
+  --sidebar-primary-foreground: oklch(0.99 0.01 95);
+  --sidebar-accent: oklch(0.95 0.02 95);
+  --sidebar-accent-foreground: oklch(0.25 0.02 160);
+  --sidebar-border: oklch(0.92 0.01 95);
+  --sidebar-ring: oklch(0.55 0.12 165);
+}
+
+.dark {
+  --background: oklch(0.16 0.012 165);
+  --foreground: oklch(0.96 0.005 95);
+  --card: oklch(0.205 0.012 165);
+  --card-foreground: oklch(0.96 0.005 95);
+  --popover: oklch(0.205 0.012 165);
+  --popover-foreground: oklch(0.96 0.005 95);
+  --primary: oklch(0.78 0.16 165);
+  --primary-foreground: oklch(0.18 0.02 160);
+  --secondary: oklch(0.26 0.012 165);
+  --secondary-foreground: oklch(0.96 0.005 95);
+  --muted: oklch(0.26 0.012 165);
+  --muted-foreground: oklch(0.7 0.01 95);
+  --accent: oklch(0.32 0.04 80);
+  --accent-foreground: oklch(0.95 0.04 80);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.7 0.13 165);
+  --chart-1: oklch(0.7 0.16 165);
+  --chart-2: oklch(0.78 0.18 80);
+  --chart-3: oklch(0.7 0.18 250);
+  --chart-4: oklch(0.75 0.18 0);
+  --chart-5: oklch(0.7 0.18 300);
+  --sidebar: oklch(0.19 0.012 165);
+  --sidebar-foreground: oklch(0.96 0.005 95);
+  --sidebar-primary: oklch(0.78 0.16 165);
+  --sidebar-primary-foreground: oklch(0.18 0.02 160);
+  --sidebar-accent: oklch(0.26 0.012 165);
+  --sidebar-accent-foreground: oklch(0.96 0.005 95);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.7 0.13 165);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.85 0.01 95 / 0.6);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.75 0.01 95 / 0.7);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 0.18);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+}
+
+/* Utility helpers used across the app */
+@layer utilities {
+  .dyne-card-shadow {
+    box-shadow:
+      0 1px 2px oklch(0.4 0.02 95 / 0.04),
+      0 4px 12px oklch(0.4 0.02 95 / 0.04);
+  }
+  .dyne-card-shadow-lg {
+    box-shadow:
+      0 1px 2px oklch(0.4 0.02 95 / 0.06),
+      0 8px 24px oklch(0.4 0.02 95 / 0.08);
+  }
+  .dark .dyne-card-shadow {
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.4);
+  }
+  .dark .dyne-card-shadow-lg {
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 8px 24px oklch(0 0 0 / 0.3);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .grid-pattern {
+    background-image:
+      linear-gradient(oklch(0.4 0.02 95 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.4 0.02 95 / 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .dark .grid-pattern {
+    background-image:
+      linear-gradient(oklch(1 0 0 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(1 0 0 / 0.04) 1px, transparent 1px);
+  }
+}
