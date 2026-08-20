@@ -239,54 +239,6 @@ export function useUserPresence(
   return { isOnline };
 }
 
-/**
- * WebRTC Call Signaling — subscribe to incoming call events.
- * Used by the voice/video calling system to exchange SDP offers/answers
- * and ICE candidates between two peers.
- */
-export function useCallSignaling(
-  handlers: {
-    onOffer?: (data: { fromUserId: string; sdp: string; callId: string }) => void;
-    onAnswer?: (data: { fromUserId: string; sdp: string; callId: string }) => void;
-    onIceCandidate?: (data: { fromUserId: string; candidate: string; callId: string }) => void;
-    onCallEnded?: (data: { fromUserId: string; callId: string }) => void;
-  }
-) {
-  const { socket } = useRealtimeSocket();
-  const { data: session } = useSession();
-  useEffect(() => {
-    if (!socket || !session?.user?.id) return;
-    const onOffer = (d: any) => handlers.onOffer?.(d);
-    const onAnswer = (d: any) => handlers.onAnswer?.(d);
-    const onIce = (d: any) => handlers.onIceCandidate?.(d);
-    const onEnd = (d: any) => handlers.onCallEnded?.(d);
-    socket.on("webrtc:offer", onOffer);
-    socket.on("webrtc:answer", onAnswer);
-    socket.on("webrtc:ice-candidate", onIce);
-    socket.on("call:ended", onEnd);
-    return () => {
-      socket.off("webrtc:offer", onOffer);
-      socket.off("webrtc:answer", onAnswer);
-      socket.off("webrtc:ice-candidate", onIce);
-      socket.off("call:ended", onEnd);
-    };
-  }, [socket, session?.user?.id]);
-
-  const sendOffer = useCallback((targetUserId: string, sdp: string, callId: string) => {
-    socket?.emit("webrtc:offer", { targetUserId, sdp, callId });
-  }, [socket]);
-
-  const sendAnswer = useCallback((targetUserId: string, sdp: string, callId: string) => {
-    socket?.emit("webrtc:answer", { targetUserId, sdp, callId });
-  }, [socket]);
-
-  const sendIceCandidate = useCallback((targetUserId: string, candidate: string, callId: string) => {
-    socket?.emit("webrtc:ice-candidate", { targetUserId, candidate, callId });
-  }, [socket]);
-
-  const sendCallEnd = useCallback((targetUserId: string, callId: string) => {
-    socket?.emit("call:end", { targetUserId, callId });
-  }, [socket]);
-
-  return { sendOffer, sendAnswer, sendIceCandidate, sendCallEnd };
-}
+// NOTE: the WebRTC signaling hook was removed together with the realtime
+// service's relay handlers — it threw on render (missing `useCallback` import)
+// and the service never forwarded the events it emitted.

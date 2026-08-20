@@ -486,10 +486,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     else if (r.type === "note") useAppStore.getState().openNote(r.id);
     else if (r.type === "user") {
       // Start a conversation with this user
-      api.post("/api/conversations", { otherUserId: r.id }).then(({ conversation }) => {
-        useAppStore.getState().openConversation(conversation.id);
-        useAppStore.getState().setView("messages");
-      });
+      api
+        .post<{ conversation: { id: string } }>("/api/conversations", { otherUserId: r.id })
+        .then(({ conversation }) => {
+          useAppStore.getState().openConversation(conversation.id);
+          useAppStore.getState().setView("messages");
+        });
     }
     else if (r.type === "community") {
       useAppStore.getState().openCommunity(r.id);

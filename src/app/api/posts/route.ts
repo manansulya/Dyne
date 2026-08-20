@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withUserId } from "@/lib/server-auth";
 import { broadcastCommunityPost } from "@/lib/realtime-server";
@@ -42,7 +43,7 @@ export const GET = withUserId(async (userId, req: Request) => {
     where.community = { members: { some: { userId } } };
   }
 
-  const orderBy: Record<string, "asc" | "desc"> =
+  const orderBy: Prisma.PostOrderByWithRelationInput =
     q.sortby === "top"
       ? { reactions: { _count: "desc" } }
       : q.sortby === "hot"

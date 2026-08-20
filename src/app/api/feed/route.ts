@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withUserId } from "@/lib/server-auth";
 
@@ -23,7 +24,7 @@ export const GET = withUserId(async (userId, req: Request) => {
     ],
   };
 
-  const orderBy: Record<string, "asc" | "desc"> =
+  const orderBy: Prisma.PostOrderByWithRelationInput =
     sortby === "top"
       ? { reactions: { _count: "desc" } }
       : sortby === "hot"

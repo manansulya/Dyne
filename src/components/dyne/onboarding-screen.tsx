@@ -50,7 +50,6 @@ export function OnboardingScreen() {
     [{ name: "Daily reading", color: "#10b981", targetPerWeek: 7 }]
   );
   const [loading, setLoading] = useState(false);
-  const [skipAll, setSkipAll] = useState(false);
 
   function addCourse() {
     setCourses((prev) => [
@@ -105,7 +104,7 @@ export function OnboardingScreen() {
     );
   }
 
-  async function finish() {
+  async function finish({ skipAll = false }: { skipAll?: boolean } = {}) {
     setLoading(true);
     try {
       const payload = {
@@ -173,7 +172,12 @@ export function OnboardingScreen() {
             <span className="text-sm text-muted-foreground hidden sm:inline">
               Step {step + 1} of {totalSteps}
             </span>
-            <Button variant="ghost" size="sm" onClick={() => setSkipAll(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={loading}
+              onClick={() => finish({ skipAll: true })}
+            >
               Skip all
             </Button>
           </div>
@@ -551,7 +555,7 @@ export function OnboardingScreen() {
             <div className="flex items-center justify-between pt-4 border-t">
               <Button
                 variant="ghost"
-                onClick={() => (step === 0 ? finish() : setStep(step - 1))}
+                onClick={() => (step === 0 ? finish({ skipAll: true }) : setStep(step - 1))}
                 disabled={loading}
               >
                 {step === 0 ? "Skip" : "Back"}
@@ -563,7 +567,7 @@ export function OnboardingScreen() {
                     <ArrowRight className="h-4 w-4 ml-1" />
                   </Button>
                 ) : (
-                  <Button onClick={finish} disabled={loading}>
+                  <Button onClick={() => finish()} disabled={loading}>
                     {loading && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
                     <Sparkles className="h-4 w-4 mr-1" />
                     Take me to Dyne

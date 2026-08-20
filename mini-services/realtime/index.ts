@@ -177,56 +177,9 @@ io.on("connection", (socket) => {
     console.error(`[realtime] socket error ${socket.id}:`, err);
   });
 
-  // ---- WebRTC Call Signaling ----
-  // Relay WebRTC offer/answer/ICE candidates between two peers
-  socket.on(
-    "webrtc:offer",
-    (data: { targetUserId: string; sdp: string; callId: string }) => {
-      const user = onlineUsers.get(socket.id);
-      if (!user?.authenticated || !data?.targetUserId) return;
-      io.to(`user:${data.targetUserId}`).emit("webrtc:offer", {
-        fromUserId: user.userId,
-        sdp: data.sdp,
-        callId: data.callId,
-      });
-    }
-  );
-  socket.on(
-    "webrtc:answer",
-    (data: { targetUserId: string; sdp: string; callId: string }) => {
-      const user = onlineUsers.get(socket.id);
-      if (!user?.authenticated || !data?.targetUserId) return;
-      io.to(`user:${data.targetUserId}`).emit("webrtc:answer", {
-        fromUserId: user.userId,
-        sdp: data.sdp,
-        callId: data.callId,
-      });
-    }
-  );
-  socket.on(
-    "webrtc:ice-candidate",
-    (data: { targetUserId: string; candidate: string; callId: string }) => {
-      const user = onlineUsers.get(socket.id);
-      if (!user?.authenticated || !data?.targetUserId) return;
-      io.to(`user:${data.targetUserId}`).emit("webrtc:ice-candidate", {
-        fromUserId: user.userId,
-        candidate: data.candidate,
-        callId: data.callId,
-      });
-    }
-  );
-  // Call ended notification (in addition to the REST API)
-  socket.on(
-    "call:end",
-    (data: { targetUserId: string; callId: string }) => {
-      const user = onlineUsers.get(socket.id);
-      if (!user?.authenticated || !data?.targetUserId) return;
-      io.to(`user:${data.targetUserId}`).emit("call:ended", {
-        fromUserId: user.userId,
-        callId: data.callId,
-      });
-    }
-  );
+  // NOTE: WebRTC call signaling relay was removed here. It was unreachable dead
+  // code (it gated on an `authenticated` flag that was never set) and no client
+  // used it. Authenticated signaling belongs with the signed-socket-token work.
 
   socket.on("disconnect", () => {
     const user = onlineUsers.get(socket.id);
