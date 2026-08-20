@@ -56,7 +56,7 @@ Dyne is a unified social, academic, and communication platform that combines aca
 - **Authentication** — Email/password via NextAuth.js (JWT sessions, bcrypt hashing). All user fields cached in JWT for fast session reads (no DB hit per request).
 - **User isolation** — Every query scoped by `userId`. Users cannot read or mutate other users' data.
 - **Onboarding** — 3-step flow (profile → courses+schedule → goals+habits). Skip-all option.
-- **Demo seed** — 6 courses, 9 assignments, 6 exams, 4 habits, 3 goals, 3 communities with posts + comments, 2 spaces with channel messages, study sessions, notifications.
+- **Development fixtures** — Additive local-only sample content (courses, assignments, exams, habits, goals, communities, spaces). Disabled in production builds and behind `ENABLE_DEV_FIXTURES=true`.
 - **Mobile-first** — Hamburger drawer, touch-friendly tap targets, no horizontal overflow.
 - **Light + dark themes** — Warm paper-like light, deep ink dark.
 
@@ -103,8 +103,8 @@ cd mini-services/realtime && bun install && cd ..
 # 3. Configure env (DATABASE_URL is already set to a local SQLite file)
 cp .env.example .env
 
-# 4. Push the Prisma schema to the database (creates the SQLite file)
-bun run db:push
+# 4. Apply migrations to the database (creates the SQLite file)
+bun run db:deploy
 
 # 5. Start the dev server (Next.js on :3000 + realtime mini-service on :3003)
 bun run dev
@@ -114,10 +114,10 @@ bash .zscripts/dev.sh
 
 Open http://localhost:3000. Register a new account → onboard → start using Dyne.
 
-### Generate demo data
-From inside the app: **Settings → Demo data → Seed demo data**.
+### Development fixtures
+Set `ENABLE_DEV_FIXTURES=true` in `.env`, then from inside the app: **Settings → Development fixtures → Add sample content** (`POST /api/dev/fixtures`).
 
-This creates 6 courses, 9 assignments, 6 exams, 4 habits, 3 goals, 3 communities (cs_students, campus_life, math_help) with posts + comments, and 2 spaces (CS 201 Study Group, First Year Friends) with seeded channel messages.
+This *adds* 6 courses, 9 assignments, 6 exams, 4 habits, 3 goals, 3 communities with posts + comments, and 2 spaces with channel messages to your account. It never deletes existing rows, and the route returns 404 in a production build.
 
 ---
 
@@ -167,7 +167,7 @@ src/
       profile/[username]   # Public user profile
       profile/me           # Own profile
       search               # Global search across all entities
-      seed                 # Demo seed
+      dev/fixtures         # Development-only additive fixtures (404 in production)
       spaces/[id]          # Space CRUD
       spaces/[id]/join     # Join space
       spaces/[id]/members/[memberId] # Role change / kick
@@ -226,15 +226,18 @@ src/
 This codebase uses **agent-browser** for end-to-end verification. Verified user journeys:
 
 1. **Auth performance**: Register new user → land on onboarding in ~5s (was 15-30s+ before JWT optimization)
-2. **End-to-end academic**: Register → onboard (skip) → seed demo data → dashboard populates with real, related data → toggle tasks → assignment progress auto-updates
-3. **Social**: Open Community Feed → see seeded posts (cs_students, campus_life, math_help) → create new post → upvote → open post detail → add comment → comment count updates
-4. **Communication**: Open Spaces → see seeded spaces (CS 201 Study Group, First Year Friends) → open space → see channel sidebar (#general, #announcements, #study-group, #off-topic) → see seeded messages with date dividers → send new message → see it appear in the chat
+2. **End-to-end academic**: Register → onboard (skip) → add development fixtures → dashboard populates with real, related data → toggle tasks → assignment progress auto-updates
+3. **Social**: Open Community Feed → see fixture posts (cs_students, campus_life, math_help) → create new post → upvote → open post detail → add comment → comment count updates
+4. **Communication**: Open Spaces → see fixture spaces (CS 201 Study Group, First Year Friends) → open space → see channel sidebar (#general, #announcements, #study-group, #off-topic) → see fixture messages with date dividers → send new message → see it appear in the chat
 5. **Mobile**: Hamburger drawer opens, navigation works at 390×844 viewport
 
 Manual test commands:
 ```bash
 bun run lint         # ESLint must pass (0 errors)
-bun run db:push      # Schema must apply cleanly
+bun run typecheck    # tsc --noEmit must pass (0 errors)
+bun run test         # Vitest integration suite
+bun run test:e2e     # Playwright end-to-end suite
+bun run db:deploy    # Migrations must apply cleanly
 bun run dev          # Server must start
 ```
 
@@ -245,10 +248,10 @@ bun run dev          # Server must start
 ```bash
 bun run dev          # Start dev server (http://localhost:3000)
 bun run lint         # ESLint
-bun run db:push      # Apply schema changes
 bun run db:generate  # Regenerate Prisma client
-bun run db:migrate   # Create migration
-bun run db:reset     # Reset DB + re-run migrations
+bun run db:migrate   # Create + apply a migration in development
+bun run db:deploy    # Apply pending migrations (no data loss)
+bun run db:adopt     # Adopt the baseline migration on an existing database
 bun run build        # Production build
 bun run start        # Start production server (after build)
 ```
@@ -314,7 +317,7 @@ Dyne is a single-page app — there is one route (`/`). View switching is done i
 
 - **Voice/video calls**: The `Call` model exists in the schema for future use, but real WebRTC calling is not implemented (LiveKit not available in this sandbox). The schema supports the lifecycle (incoming/accepted/rejected/canceled/missed/ended) for future integration.
 - **File uploads**: Image URLs are supported in posts and messages (paste a URL). No actual upload pipeline (UploadThing/S3 not available) — users provide URLs.
-- **Single-user testing**: The demo seed creates content authored by the current user (since there's only one user). Multi-user interactions (real DMs, real-time chat between two browsers) require registering multiple accounts.
+- **Single-user testing**: Development fixtures create content authored by the current user. Multi-user interactions (real DMs, real-time chat between two browsers) require registering multiple accounts.
 - **Real-time in production**: The Socket.io mini-service runs in-process. For production, deploy it as a separate service (e.g. on Railway/Render) and set `REALTIME_URL` accordingly.
 - **Online presence**: Tracked via socket connection (online when socket connected, offline on disconnect). Doesn't survive page refresh gracefully — there's a brief "offline" window during reload.
 
