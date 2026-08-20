@@ -23,6 +23,9 @@ jobs:
         with:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
+      # the realtime service is a separate package; tsc typechecks it too
+      - run: bun install
+        working-directory: mini-services/realtime
       - run: bun run db:generate
       - run: bun run lint
       - run: bun run typecheck
