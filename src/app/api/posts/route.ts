@@ -4,17 +4,19 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withUserId } from "@/lib/server-auth";
 import { broadcastCommunityPost } from "@/lib/realtime-server";
+import { claimAttachments, publicAttachment, verifyClaimable } from "@/lib/attachments";
 
 const createPostSchema = z.object({
   communityId: z.string().min(1),
   title: z.string().min(1, "Title is required").max(200),
   content: z.string().max(20_000).default(""),
-  mediaUrl: z.string().max(500_000).optional().nullable(),
+  mediaUrl: z.string().url().max(2048).optional().nullable(),
   mediaKind: z.enum(["IMAGE", "VIDEO", "LINK"]).optional().nullable(),
   linkUrl: z.string().url().optional().nullable(),
   courseId: z.string().optional().nullable(),
   assignmentId: z.string().optional().nullable(),
   examId: z.string().optional().nullable(),
+  attachmentIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 
 const listQuerySchema = z.object({
@@ -63,6 +65,7 @@ export const GET = withUserId(async (userId, req: Request) => {
       _count: { select: { comments: true, reactions: true } },
       reactions: { where: { userId }, select: { isUpvote: true } },
       bookmarks: { where: { userId }, select: { id: true } },
+      attachments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
     },
   });
 
@@ -73,6 +76,7 @@ export const GET = withUserId(async (userId, req: Request) => {
   // Attach computed fields
   const out = items.map((p) => ({
     ...p,
+    attachments: p.attachments.map(publicAttachment),
     upvotes: p.reactions.filter((r) => r.isUpvote).length,
     downvotes: p.reactions.filter((r) => !r.isUpvote).length,
     score:
@@ -111,7 +115,14 @@ export const POST = withUserId(async (userId, req: Request) => {
     if (!c) return NextResponse.json({ error: "Invalid course" }, { status: 400 });
   }
 
-  const post = await db.post.create({
+  if (!(await verifyClaimable(userId, data.attachmentIds))) {
+    return NextResponse.json(
+      { error: "One or more attachments are not available" },
+      { status: 400 }
+    );
+  }
+
+  const created = await db.post.create({
     data: {
       communityId: data.communityId,
       authorId: userId,
@@ -124,16 +135,22 @@ export const POST = withUserId(async (userId, req: Request) => {
       assignmentId: data.assignmentId ?? null,
       examId: data.examId ?? null,
     },
+  });
+  await claimAttachments(userId, data.attachmentIds, { postId: created.id });
+  const post = await db.post.findUniqueOrThrow({
+    where: { id: created.id },
     include: {
       author: { select: { id: true, name: true, username: true, avatarUrl: true } },
       community: { select: { id: true, name: true, color: true, iconUrl: true } },
       _count: { select: { comments: true, reactions: true } },
+      attachments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
     },
   });
 
   // Broadcast to community subscribers (real-time)
   const postWithExtras = {
     ...post,
+    attachments: post.attachments.map(publicAttachment),
     upvotes: 0,
     downvotes: 0,
     score: 0,

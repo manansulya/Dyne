@@ -4,13 +4,15 @@ import { db } from "@/lib/db";
 import { withUserId } from "@/lib/server-auth";
 import { broadcastDM } from "@/lib/realtime-server";
 import { broadcastNotification } from "@/lib/realtime-server";
+import { claimAttachments, publicAttachment, verifyClaimable } from "@/lib/attachments";
 
 const createSchema = z.object({
   conversationId: z.string().min(1),
   content: z.string().max(5000).optional().default(""),
-  fileUrl: z.string().max(500_000).optional().nullable(),
+  fileUrl: z.string().url().max(2048).optional().nullable(),
   fileKind: z.enum(["IMAGE", "PDF", "OTHER"]).optional().nullable(),
   replyToId: z.string().optional().nullable(),
+  attachmentIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 
 export const POST = withUserId(async (userId, req: Request) => {
@@ -23,7 +25,7 @@ export const POST = withUserId(async (userId, req: Request) => {
     );
   }
   const data = parsed.data;
-  if (!data.content.trim() && !data.fileUrl) {
+  if (!data.content.trim() && !data.fileUrl && data.attachmentIds.length === 0) {
     return NextResponse.json({ error: "Message must have content or a file" }, { status: 400 });
   }
   const conversation = await db.conversation.findFirst({
@@ -35,7 +37,13 @@ export const POST = withUserId(async (userId, req: Request) => {
   if (!conversation) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
-  const message = await db.directMessage.create({
+  if (!(await verifyClaimable(userId, data.attachmentIds))) {
+    return NextResponse.json(
+      { error: "One or more attachments are not available" },
+      { status: 400 }
+    );
+  }
+  const created = await db.directMessage.create({
     data: {
       conversationId: data.conversationId,
       authorId: userId,
@@ -44,10 +52,16 @@ export const POST = withUserId(async (userId, req: Request) => {
       fileKind: data.fileKind ?? null,
       replyToId: data.replyToId ?? null,
     },
+  });
+  await claimAttachments(userId, data.attachmentIds, { directMessageId: created.id });
+  const row = await db.directMessage.findUniqueOrThrow({
+    where: { id: created.id },
     include: {
       author: { select: { id: true, name: true, username: true, avatarUrl: true, isOnline: true } },
+      attachments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
     },
   });
+  const message = { ...row, attachments: row.attachments.map(publicAttachment) };
   // Update conversation's updatedAt for sorting
   await db.conversation.update({
     where: { id: data.conversationId },

@@ -37,6 +37,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ViewHeader, ViewContainer } from "./view-header";
+import { useUploads, type UploadedAttachment } from "@/lib/use-uploads";
+import { AttachButton, AttachmentList, DropZone, UploadTray } from "@/components/dyne/attachments";
 import { Loading, EmptyState } from "@/components/dyne/states";
 import { useAppStore } from "@/store/app-store";
 import { useChannelRealtime, useUserPresence } from "@/lib/realtime-client";
@@ -78,6 +80,7 @@ interface SpaceMember {
 interface ChatMessage {
   id: string;
   content: string;
+  attachments?: UploadedAttachment[];
   fileUrl: string | null;
   fileKind: string | null;
   replyToId: string | null;
@@ -400,16 +403,23 @@ function ChannelView({
     }
   }, [messages.length]);
 
+  const uploads = useUploads();
   const sendMutation = useMutation({
-    mutationFn: (data: { content: string; replyToId?: string | null }) =>
+    mutationFn: (data: {
+      content: string;
+      replyToId?: string | null;
+      attachmentIds: string[];
+    }) =>
       api.post("/api/messages", {
         channelId: channel.id,
         content: data.content,
         replyToId: data.replyToId ?? null,
+        attachmentIds: data.attachmentIds,
       }),
     onSuccess: () => {
       setMessageText("");
       setReplyTo(null);
+      uploads.clear();
       sendTyping(false);
     },
     onError: (err) => toast.error((err as Error).message || "Could not send message"),
@@ -423,8 +433,13 @@ function ChannelView({
   }
 
   function handleSend() {
-    if (!messageText.trim()) return;
-    sendMutation.mutate({ content: messageText.trim(), replyToId: replyTo?.id ?? null });
+    if (!messageText.trim() && uploads.readyIds.length === 0) return;
+    if (uploads.isUploading) return;
+    sendMutation.mutate({
+      content: messageText.trim(),
+      replyToId: replyTo?.id ?? null,
+      attachmentIds: uploads.readyIds,
+    });
   }
 
   // Group messages by date for date dividers
@@ -556,7 +571,7 @@ function ChannelView({
       </div>
 
       {/* Composer */}
-      <div className="border-t border-border p-3 shrink-0">
+      <DropZone onFiles={uploads.add} className="border-t border-border p-3 shrink-0">
         {replyTo && (
           <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
             <span>Replying to</span>
@@ -569,7 +584,14 @@ function ChannelView({
             </Button>
           </div>
         )}
+        <UploadTray
+          items={uploads.items}
+          onCancel={uploads.cancel}
+          onRetry={uploads.retry}
+          onRemove={uploads.remove}
+        />
         <div className="flex gap-2 items-end">
+          <AttachButton onFiles={uploads.add} />
           <Input
             value={messageText}
             onChange={handleInputChange}
@@ -582,11 +604,18 @@ function ChannelView({
             }}
             className="flex-1"
           />
-          <Button onClick={handleSend} disabled={sendMutation.isPending || !messageText.trim()}>
+          <Button
+            onClick={handleSend}
+            disabled={
+              sendMutation.isPending ||
+              uploads.isUploading ||
+              (!messageText.trim() && uploads.readyIds.length === 0)
+            }
+          >
             {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
-      </div>
+      </DropZone>
     </div>
   );
 }
@@ -666,19 +695,7 @@ function MessageItem({
         ) : (
           <div className="text-sm whitespace-pre-wrap">{message.content}</div>
         )}
-        {message.fileUrl && message.fileKind === "IMAGE" && (
-          <img src={message.fileUrl} alt="" className="rounded-md max-h-72 mt-1" />
-        )}
-        {message.fileUrl && message.fileKind === "PDF" && (
-          <a
-            href={message.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-primary hover:underline mt-1 inline-block"
-          >
-            📄 PDF attachment
-          </a>
-        )}
+        {!message.isDeleted && <AttachmentList attachments={message.attachments ?? []} />}
         {message.isEdited && !message.isDeleted && (
           <span className="text-[10px] text-muted-foreground ml-2">(edited)</span>
         )}

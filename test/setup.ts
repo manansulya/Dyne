@@ -1,9 +1,13 @@
 import { vi } from "vitest";
-import { TEST_DATABASE_URL } from "./db-path";
+import { TEST_DATABASE_URL, TEST_STORAGE_ROOT } from "./db-path";
 
 // Must be set before `@/lib/db` is imported by any route module.
 process.env.DATABASE_URL = TEST_DATABASE_URL;
 process.env.NEXTAUTH_SECRET ??= "test-secret";
+// Uploads in tests go to a throwaway root of the local storage driver, so no
+// test ever needs (or reaches) real S3/R2 credentials.
+process.env.STORAGE_DRIVER = "local";
+process.env.STORAGE_LOCAL_ROOT = TEST_STORAGE_ROOT;
 process.env.NEXTAUTH_URL ??= "http://localhost:3000";
 
 // Route handlers go through the real `withUserId` / `requireUserId` code; only

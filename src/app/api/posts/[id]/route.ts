@@ -3,11 +3,12 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { withUserId } from "@/lib/server-auth";
 import { broadcastCommunityPost } from "@/lib/realtime-server";
+import { publicAttachment } from "@/lib/attachments";
 
 const updatePostSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   content: z.string().max(20_000).optional(),
-  mediaUrl: z.string().max(500_000).optional().nullable(),
+  mediaUrl: z.string().url().max(2048).optional().nullable(),
   mediaKind: z.enum(["IMAGE", "VIDEO", "LINK"]).optional().nullable(),
   linkUrl: z.string().url().optional().nullable(),
 });
@@ -23,6 +24,7 @@ export const GET = withUserId(
         _count: { select: { comments: true, reactions: true } },
         reactions: { where: { userId }, select: { isUpvote: true } },
         bookmarks: { where: { userId }, select: { id: true } },
+        attachments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
       },
     });
     if (!post) {
@@ -33,6 +35,7 @@ export const GET = withUserId(
     return NextResponse.json({
       post: {
         ...post,
+        attachments: post.attachments.map(publicAttachment),
         upvotes,
         downvotes,
         score: upvotes - downvotes,
