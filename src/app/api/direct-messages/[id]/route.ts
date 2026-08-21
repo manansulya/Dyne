@@ -39,6 +39,12 @@ export const PATCH = withUserId(
       data.content = parsed.data.content;
       data.isEdited = true;
     }
+    if (parsed.data.isDeleted && !isAuthor) {
+      return NextResponse.json(
+        { error: "Only the author can delete their message" },
+        { status: 403 }
+      );
+    }
     if (parsed.data.isDeleted) {
       data.isDeleted = true;
       data.content = "This message has been deleted.";

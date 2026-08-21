@@ -7,40 +7,71 @@ import { useSession } from "next-auth/react";
 let socket: Socket | null = null;
 let connectPromise: Promise<Socket | null> | null = null;
 
+/**
+ * The realtime service establishes identity from a short-lived token minted by
+ * `/api/realtime/token` for the session cookie holder — the client never tells
+ * the service who it is.
+ */
+async function fetchToken(): Promise<string | null> {
+  try {
+    const res = await fetch("/api/realtime/token", { cache: "no-store" });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { token?: string };
+    return body.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function getSocket(): Promise<Socket | null> {
   if (socket && socket.connected) return Promise.resolve(socket);
   if (connectPromise) return connectPromise;
-  connectPromise = new Promise<Socket | null>((resolve) => {
-    try {
-      const s = io("/?XTransformPort=3003", {
-        path: "/",
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000,
-      });
-      s.on("connect", () => {
-        socket = s;
-        resolve(s);
-      });
-      s.on("connect_error", () => {
-        // resolve null so callers can fall back to polling
-        resolve(null);
-      });
-      // 3s timeout — if we can't connect, give up gracefully
-      setTimeout(() => {
-        if (!s.connected) resolve(null);
-      }, 3000);
-    } catch {
-      resolve(null);
+  connectPromise = (async () => {
+    const token = await fetchToken();
+    if (!token) {
+      connectPromise = null;
+      return null;
     }
-  });
+    return new Promise<Socket | null>((resolve) => {
+      try {
+        const s = io("/?XTransformPort=3003", {
+          path: "/",
+          transports: ["websocket"],
+          reconnection: true,
+          reconnectionAttempts: Infinity,
+          reconnectionDelay: 1000,
+          auth: { token },
+        });
+        // Tokens expire, so every reconnect attempt carries a fresh one.
+        s.io.on("reconnect_attempt", () => {
+          void fetchToken().then((next) => {
+            if (next) s.auth = { token: next };
+          });
+        });
+        s.on("connect", () => {
+          socket = s;
+          resolve(s);
+        });
+        s.on("connect_error", () => {
+          // resolve null so callers can fall back to polling
+          resolve(null);
+        });
+        // 3s timeout — if we can't connect, give up gracefully
+        setTimeout(() => {
+          if (!s.connected) resolve(null);
+        }, 3000);
+      } catch {
+        resolve(null);
+      }
+    });
+  })();
   return connectPromise;
 }
 
 /**
  * Hook that returns a connected Socket (or null while connecting / offline).
- * Also authenticates the socket with the current user's identity.
+ * The connection is authenticated during the handshake, so there is nothing to
+ * announce once it is open.
  */
 export function useRealtimeSocket(): {
   socket: Socket | null;
@@ -55,22 +86,7 @@ export function useRealtimeSocket(): {
     getSocket().then((s) => {
       if (cancelled || !s) return;
       setIsConnected(s.connected);
-      // Send auth with user identity
-      s.emit("auth", {
-        userId: session.user.id,
-        username: session.user.username,
-        name: session.user.name,
-        avatarUrl: session.user.avatarUrl,
-      });
-      const onConnect = () => {
-        setIsConnected(true);
-        s.emit("auth", {
-          userId: session.user.id,
-          username: session.user.username,
-          name: session.user.name,
-          avatarUrl: session.user.avatarUrl,
-        });
-      };
+      const onConnect = () => setIsConnected(true);
       const onDisconnect = () => setIsConnected(false);
       s.on("connect", onConnect);
       s.on("disconnect", onDisconnect);
@@ -78,7 +94,7 @@ export function useRealtimeSocket(): {
     return () => {
       cancelled = true;
     };
-  }, [session?.user?.id, session?.user?.username, session?.user?.name, session?.user?.avatarUrl]);
+  }, [session?.user?.id]);
 
   return { socket: socket && socket.connected ? socket : null, isConnected };
 }
@@ -144,14 +160,10 @@ export function useChannelRealtime(
   }, [socket, channelId, session?.user?.id]);
 
   // Helper to send a typing event
+  // The service stamps the event with the authenticated user id itself.
   const sendTyping = (isTyping: boolean) => {
-    if (!socket || !channelId || !session?.user?.id) return;
-    socket.emit("typing:channel", {
-      channelId,
-      userId: session.user.id,
-      username: session.user.username ?? session.user.name ?? null,
-      isTyping,
-    });
+    if (!socket || !channelId) return;
+    socket.emit("typing:channel", { channelId, isTyping });
   };
   return { sendTyping };
 }
@@ -190,13 +202,8 @@ export function useConversationRealtime(
   }, [socket, conversationId, session?.user?.id]);
 
   const sendTyping = (isTyping: boolean) => {
-    if (!socket || !conversationId || !session?.user?.id) return;
-    socket.emit("typing:conversation", {
-      conversationId,
-      userId: session.user.id,
-      username: session.user.username ?? session.user.name ?? null,
-      isTyping,
-    });
+    if (!socket || !conversationId) return;
+    socket.emit("typing:conversation", { conversationId, isTyping });
   };
   return { sendTyping };
 }
@@ -239,54 +246,6 @@ export function useUserPresence(
   return { isOnline };
 }
 
-/**
- * WebRTC Call Signaling — subscribe to incoming call events.
- * Used by the voice/video calling system to exchange SDP offers/answers
- * and ICE candidates between two peers.
- */
-export function useCallSignaling(
-  handlers: {
-    onOffer?: (data: { fromUserId: string; sdp: string; callId: string }) => void;
-    onAnswer?: (data: { fromUserId: string; sdp: string; callId: string }) => void;
-    onIceCandidate?: (data: { fromUserId: string; candidate: string; callId: string }) => void;
-    onCallEnded?: (data: { fromUserId: string; callId: string }) => void;
-  }
-) {
-  const { socket } = useRealtimeSocket();
-  const { data: session } = useSession();
-  useEffect(() => {
-    if (!socket || !session?.user?.id) return;
-    const onOffer = (d: any) => handlers.onOffer?.(d);
-    const onAnswer = (d: any) => handlers.onAnswer?.(d);
-    const onIce = (d: any) => handlers.onIceCandidate?.(d);
-    const onEnd = (d: any) => handlers.onCallEnded?.(d);
-    socket.on("webrtc:offer", onOffer);
-    socket.on("webrtc:answer", onAnswer);
-    socket.on("webrtc:ice-candidate", onIce);
-    socket.on("call:ended", onEnd);
-    return () => {
-      socket.off("webrtc:offer", onOffer);
-      socket.off("webrtc:answer", onAnswer);
-      socket.off("webrtc:ice-candidate", onIce);
-      socket.off("call:ended", onEnd);
-    };
-  }, [socket, session?.user?.id]);
-
-  const sendOffer = useCallback((targetUserId: string, sdp: string, callId: string) => {
-    socket?.emit("webrtc:offer", { targetUserId, sdp, callId });
-  }, [socket]);
-
-  const sendAnswer = useCallback((targetUserId: string, sdp: string, callId: string) => {
-    socket?.emit("webrtc:answer", { targetUserId, sdp, callId });
-  }, [socket]);
-
-  const sendIceCandidate = useCallback((targetUserId: string, candidate: string, callId: string) => {
-    socket?.emit("webrtc:ice-candidate", { targetUserId, candidate, callId });
-  }, [socket]);
-
-  const sendCallEnd = useCallback((targetUserId: string, callId: string) => {
-    socket?.emit("call:end", { targetUserId, callId });
-  }, [socket]);
-
-  return { sendOffer, sendAnswer, sendIceCandidate, sendCallEnd };
-}
+// NOTE: the WebRTC signaling hook was removed together with the realtime
+// service's relay handlers — it threw on render (missing `useCallback` import)
+// and the service never forwarded the events it emitted.

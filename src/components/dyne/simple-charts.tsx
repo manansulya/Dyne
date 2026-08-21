@@ -151,7 +151,7 @@ export function SimpleDonutChart({ data, height = 200 }: DonutChartProps) {
   const segments = useMemo(() => {
     if (total === 0) return [];
     let startAngle = -Math.PI / 2;
-    const segs = [];
+    const segs: Array<{ name: string; value: number; color: string; path: string }> = [];
     for (const d of data) {
       if (d.value === 0) continue;
       const angle = (d.value / total) * Math.PI * 2;

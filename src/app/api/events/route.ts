@@ -32,7 +32,11 @@ export const GET = withUserId(async (userId, req: Request) => {
   const where: {
     userId: string;
     courseId?: string;
-    OR?: Array<{ startDate: { gte?: Date; lte?: Date } } | { endDate: { gte?: Date; lte?: Date } }>;
+    OR?: Array<
+      | { startDate: { gte?: Date; lte?: Date } }
+      | { endDate: { gte?: Date; lte?: Date } }
+      | { AND: Array<{ startDate: { lte: Date } } | { endDate: { gte: Date } }> }
+    >;
   } = { userId };
   if (q.courseId) where.courseId = q.courseId;
   if (q.start && q.end) {

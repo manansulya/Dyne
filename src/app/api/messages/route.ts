@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { withUserId } from "@/lib/server-auth";
 import { broadcastChannelMessage } from "@/lib/realtime-server";
+import { claimAttachments, publicAttachment, verifyClaimable } from "@/lib/attachments";
 
 const listQuerySchema = z.object({
   channelId: z.string().min(1),
@@ -13,9 +14,10 @@ const listQuerySchema = z.object({
 const createSchema = z.object({
   channelId: z.string().min(1),
   content: z.string().max(5000).optional().default(""),
-  fileUrl: z.string().max(500_000).optional().nullable(),
+  fileUrl: z.string().url().max(2048).optional().nullable(),
   fileKind: z.enum(["IMAGE", "PDF", "OTHER"]).optional().nullable(),
   replyToId: z.string().optional().nullable(),
+  attachmentIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 
 export const GET = withUserId(async (userId, req: Request) => {
@@ -43,12 +45,15 @@ export const GET = withUserId(async (userId, req: Request) => {
     ...(q.cursor ? { skip: 1, cursor: { id: q.cursor } } : {}),
     include: {
       author: { select: { id: true, name: true, username: true, avatarUrl: true, isOnline: true } },
+      attachments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
     },
   });
   const hasMore = messages.length > q.limit;
   const items = hasMore ? messages.slice(0, q.limit) : messages;
   return NextResponse.json({
-    messages: items.reverse(), // back to chronological order
+    messages: items
+      .map((m) => ({ ...m, attachments: m.attachments.map(publicAttachment) }))
+      .reverse(), // back to chronological order
     nextCursor: hasMore ? items[items.length - 1]?.id : null,
   });
 });
@@ -63,7 +68,7 @@ export const POST = withUserId(async (userId, req: Request) => {
     );
   }
   const data = parsed.data;
-  if (!data.content.trim() && !data.fileUrl) {
+  if (!data.content.trim() && !data.fileUrl && data.attachmentIds.length === 0) {
     return NextResponse.json({ error: "Message must have content or a file" }, { status: 400 });
   }
   // Validate membership
@@ -78,7 +83,14 @@ export const POST = withUserId(async (userId, req: Request) => {
     return NextResponse.json({ error: "Not a member of this space" }, { status: 403 });
   }
 
-  const message = await db.message.create({
+  if (!(await verifyClaimable(userId, data.attachmentIds))) {
+    return NextResponse.json(
+      { error: "One or more attachments are not available" },
+      { status: 400 }
+    );
+  }
+
+  const created = await db.message.create({
     data: {
       channelId: data.channelId,
       authorId: userId,
@@ -87,13 +99,23 @@ export const POST = withUserId(async (userId, req: Request) => {
       fileKind: data.fileKind ?? null,
       replyToId: data.replyToId ?? null,
     },
-    include: {
-      author: { select: { id: true, name: true, username: true, avatarUrl: true, isOnline: true } },
-    },
   });
 
-  // Real-time broadcast
-  broadcastChannelMessage(data.channelId, message);
+  // Attachments were uploaded ahead of the message; claiming re-checks that the
+  // uploader owns them and that they are not already attached elsewhere.
+  await claimAttachments(userId, data.attachmentIds, { messageId: created.id });
 
-  return NextResponse.json({ message });
+  const message = await db.message.findUniqueOrThrow({
+    where: { id: created.id },
+    include: {
+      author: { select: { id: true, name: true, username: true, avatarUrl: true, isOnline: true } },
+      attachments: { where: { deletedAt: null }, orderBy: { createdAt: "asc" } },
+    },
+  });
+  const payload = { ...message, attachments: message.attachments.map(publicAttachment) };
+
+  // Real-time broadcast
+  broadcastChannelMessage(data.channelId, payload);
+
+  return NextResponse.json({ message: payload });
 });

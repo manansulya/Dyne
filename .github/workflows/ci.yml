@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: file:./db/ci.db
+  NEXTAUTH_URL: http://localhost:3000
+  NEXTAUTH_SECRET: ci-secret-not-used-in-production
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      # the realtime service is a separate package with its own tsconfig
+      - run: bun install
+        working-directory: mini-services/realtime
+      - run: bun run db:generate
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run typecheck:realtime
+      - run: bun run test
+      - run: bun run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      # next build typechecks every .ts under the repo, including the service
+      - run: bun install
+        working-directory: mini-services/realtime
+      - run: bun run db:generate
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run build
+      - run: bun run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

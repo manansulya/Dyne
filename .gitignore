@@ -24,6 +24,15 @@ server.log
 tsconfig.tsbuildinfo
 next-env.d.ts
 
+# Local storage driver data (uploaded bytes) — never commit user content
+storage-data/
+
+# Test artifacts
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
 # Editors / OS
 .DS_Store
 .idea/

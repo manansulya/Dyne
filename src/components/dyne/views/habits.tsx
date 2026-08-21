@@ -79,7 +79,7 @@ export function HabitsView() {
 
   const toggle = useMutation({
     mutationFn: ({ id, date }: { id: string; date: string }) =>
-      api.post("/api/habit-logs", { habitId: id, date }),
+      api.post<{ completed: boolean }>("/api/habit-logs", { habitId: id, date }),
     onSuccess: (res) => {
       toast.success(res.completed ? "Habit completed for today" : "Habit unchecked");
       qc.invalidateQueries({ queryKey: ["habits"] });

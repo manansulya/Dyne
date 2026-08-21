@@ -67,6 +67,7 @@ interface PostDetail {
 }
 interface CommentNode {
   id: string;
+  postId?: string;
   content: string;
   isEdited: boolean;
   createdAt: string;
